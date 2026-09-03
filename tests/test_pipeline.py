@@ -1,0 +1,44 @@
+from __future__ import annotations
+
+import json
+
+import pandas as pd
+
+from recsys_lab.pipeline import ExperimentConfig, run_experiment
+
+
+def test_pipeline_writes_reports_and_artifacts(tmp_path) -> None:
+    config = ExperimentConfig(
+        users=18,
+        items=35,
+        density=0.25,
+        seed=21,
+        top_k=5,
+        mf_factors=6,
+        mf_epochs=3,
+        artifact_dir=tmp_path / "artifacts",
+        report_dir=tmp_path / "reports",
+    )
+
+    summary = run_experiment(config)
+
+    metrics_path = tmp_path / "reports" / "model_metrics.csv"
+    history_path = tmp_path / "reports" / "mf_history.csv"
+    sample_path = tmp_path / "reports" / "sample_recommendations.csv"
+    model_path = tmp_path / "artifacts" / "matrix_factorization.npz"
+    summary_path = tmp_path / "reports" / "run_summary.json"
+
+    assert metrics_path.exists()
+    assert history_path.exists()
+    assert sample_path.exists()
+    assert model_path.exists()
+    assert summary_path.exists()
+    assert summary["data"]["n_users"] == 18
+
+    metrics = pd.read_csv(metrics_path)
+    assert set(metrics["model"]) == {"popularity", "item_knn", "matrix_factorization"}
+    assert {"recall_at_k", "catalog_coverage", "fit_seconds"}.issubset(metrics.columns)
+
+    with summary_path.open("r", encoding="utf-8") as handle:
+        saved = json.load(handle)
+    assert saved["best_model_by_recall"] in set(metrics["model"])
