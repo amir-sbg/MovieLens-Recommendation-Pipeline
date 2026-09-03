@@ -4,7 +4,8 @@
   "items": 120,
   "density": 0.08,
   "latent_dim": 12,
-  "epochs": 12,
+  "mf_epochs": 12,
+  "mf_factors": 16,
   "top_k": 10,
   "seed": 42
 }
