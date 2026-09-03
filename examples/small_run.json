@@ -1,0 +1,10 @@
+{
+  "dataset": "synthetic",
+  "users": 80,
+  "items": 120,
+  "density": 0.08,
+  "latent_dim": 12,
+  "epochs": 12,
+  "top_k": 10,
+  "seed": 42
+}
