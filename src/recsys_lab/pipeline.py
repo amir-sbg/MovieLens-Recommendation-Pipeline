@@ -100,6 +100,42 @@ def _item_names(data: RecommendationData, items: list[int]) -> str:
     return " | ".join(data.item_titles.get(item, str(item)) for item in items)
 
 
+def _write_markdown_report(summary: dict[str, Any], path: Path) -> None:
+    metrics = summary["metrics"]
+    lines = [
+        "# Recommendation Experiment Report",
+        "",
+        f"Best model by Recall@K: `{summary['best_model_by_recall']}`",
+        "",
+        "## Data",
+        "",
+        f"- Users: {summary['data']['n_users']}",
+        f"- Items: {summary['data']['n_items']}",
+        f"- Train interactions: {summary['data']['train_interactions']}",
+        f"- Validation interactions: {summary['data']['validation_interactions']}",
+        f"- Test interactions: {summary['data']['test_interactions']}",
+        "",
+        "## Model comparison",
+        "",
+        "| model | val RMSE | test RMSE | Recall@K | MAP@K | NDCG@K | coverage |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for row in metrics:
+        lines.append(
+            "| {model} | {validation_rmse:.4f} | {test_rmse:.4f} | {recall_at_k:.4f} | "
+            "{map_at_k:.4f} | {ndcg_at_k:.4f} | {catalog_coverage:.4f} |".format(**row)
+        )
+    lines.extend(
+        [
+            "",
+            "The ranking metrics use each user's final held-out interaction, while validation RMSE tracks",
+            "explicit-rating fit during model selection.",
+            "",
+        ]
+    )
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
 def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
     config.artifact_dir.mkdir(parents=True, exist_ok=True)
     config.report_dir.mkdir(parents=True, exist_ok=True)
@@ -188,8 +224,10 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
             "recommendations": str(config.report_dir / "sample_recommendations.csv"),
             "history": str(config.report_dir / "mf_history.csv"),
             "model": str(config.artifact_dir / "matrix_factorization.npz"),
+            "markdown_report": str(config.report_dir / "experiment_report.md"),
         },
     }
     with (config.report_dir / "run_summary.json").open("w", encoding="utf-8") as handle:
         json.dump(summary, handle, indent=2)
+    _write_markdown_report(summary, config.report_dir / "experiment_report.md")
     return summary

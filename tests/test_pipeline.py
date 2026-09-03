@@ -27,12 +27,14 @@ def test_pipeline_writes_reports_and_artifacts(tmp_path) -> None:
     sample_path = tmp_path / "reports" / "sample_recommendations.csv"
     model_path = tmp_path / "artifacts" / "matrix_factorization.npz"
     summary_path = tmp_path / "reports" / "run_summary.json"
+    report_path = tmp_path / "reports" / "experiment_report.md"
 
     assert metrics_path.exists()
     assert history_path.exists()
     assert sample_path.exists()
     assert model_path.exists()
     assert summary_path.exists()
+    assert report_path.exists()
     assert summary["data"]["n_users"] == 18
 
     metrics = pd.read_csv(metrics_path)
@@ -42,3 +44,4 @@ def test_pipeline_writes_reports_and_artifacts(tmp_path) -> None:
     with summary_path.open("r", encoding="utf-8") as handle:
         saved = json.load(handle)
     assert saved["best_model_by_recall"] in set(metrics["model"])
+    assert "Recommendation Experiment Report" in report_path.read_text(encoding="utf-8")
