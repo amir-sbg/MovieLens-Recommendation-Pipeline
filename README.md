@@ -22,10 +22,10 @@ ratings
 - Synthetic rating generator for fast local experiments
 - Optional MovieLens 100K loader
 - Per-user temporal split so validation/test simulate future recommendations
-- Popularity recommender with count-aware smoothing
+- Popularity recommender with Bayesian count-aware smoothing
 - Item-item collaborative filtering with cosine similarity and shrinkage
-- Matrix factorization trained with explicit-feedback SGD
-- Ranking metrics: Recall@K, MAP@K, NDCG@K, hit rate, catalog coverage, personalization
+- Matrix factorization trained with explicit-feedback SGD and validation early stopping
+- Ranking metrics: Recall@K, MAP@K, NDCG@K, hit rate, catalog coverage, personalization, novelty, long-tail share
 - Rating metrics: RMSE and MAE
 - CLI runner, reproducible config, saved reports, and unit tests
 
@@ -49,6 +49,7 @@ python -m recsys_lab.cli run \
   --density 0.10 \
   --mf-factors 24 \
   --mf-epochs 15 \
+  --mf-patience 5 \
   --top-k 10
 ```
 
@@ -70,7 +71,7 @@ The MovieLens command downloads the public dataset into `data/` on first run.
 
 Each run writes:
 
-- `reports/model_metrics.csv` — model comparison table
+- `reports/model_metrics.csv` — model comparison table with rating, ranking, novelty, and long-tail metrics
 - `reports/sample_recommendations.csv` — example held-out items and recommended lists
 - `reports/mf_history.csv` — matrix-factorization training curve
 - `reports/run_summary.json` — config, data shape, metrics, and artifact paths

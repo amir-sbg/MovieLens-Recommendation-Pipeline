@@ -168,6 +168,8 @@ class MatrixFactorizationRecommender:
     epochs: int = 20
     learning_rate: float = 0.03
     regularization: float = 0.03
+    patience: int | None = 5
+    min_delta: float = 1e-4
     seed: int = 42
     global_mean: float = 3.0
     user_factors: np.ndarray | None = None
@@ -183,6 +185,7 @@ class MatrixFactorizationRecommender:
         n_users: int | None = None,
         n_items: int | None = None,
     ) -> "MatrixFactorizationRecommender":
+        self._validate_training_settings()
         users, items = _infer_shape(interactions, n_users, n_items)
         rng = np.random.default_rng(self.seed)
         self.global_mean = float(interactions["rating"].mean())
@@ -195,6 +198,9 @@ class MatrixFactorizationRecommender:
         train_users = interactions["user_idx"].to_numpy(dtype=int)
         train_items = interactions["item_idx"].to_numpy(dtype=int)
         train_ratings = interactions["rating"].to_numpy(dtype=float)
+        best_validation_rmse = float("inf")
+        best_state = None
+        wait = 0
 
         for epoch in range(1, self.epochs + 1):
             order = rng.permutation(len(interactions))
@@ -232,7 +238,17 @@ class MatrixFactorizationRecommender:
                         validation["item_idx"].to_numpy(dtype=int),
                     ),
                 )
+                if row["validation_rmse"] < best_validation_rmse - self.min_delta:
+                    best_validation_rmse = row["validation_rmse"]
+                    best_state = self._state_dict()
+                    wait = 0
+                else:
+                    wait += 1
             self.history.append(row)
+            if self.patience is not None and validation is not None and wait >= self.patience:
+                break
+        if best_state is not None:
+            self._load_state_dict(best_state)
         return self
 
     def _raw_predict(self, user_idx: int, item_idx: int) -> float:
@@ -294,3 +310,31 @@ class MatrixFactorizationRecommender:
             user_bias=self.user_bias,
             item_bias=self.item_bias,
         )
+
+    def _validate_training_settings(self) -> None:
+        if self.factors < 1 or self.epochs < 1:
+            raise ValueError("factors and epochs must be positive")
+        if self.learning_rate < 0:
+            raise ValueError("learning_rate must not be negative")
+        if self.regularization < 0:
+            raise ValueError("regularization must not be negative")
+        if self.patience is not None and self.patience < 1:
+            raise ValueError("patience must be positive")
+        if self.min_delta < 0:
+            raise ValueError("min_delta must not be negative")
+
+    def _state_dict(self) -> dict[str, np.ndarray | float]:
+        return {
+            "global_mean": float(self.global_mean),
+            "user_factors": self.user_factors.copy(),
+            "item_factors": self.item_factors.copy(),
+            "user_bias": self.user_bias.copy(),
+            "item_bias": self.item_bias.copy(),
+        }
+
+    def _load_state_dict(self, state: dict[str, np.ndarray | float]) -> None:
+        self.global_mean = float(state["global_mean"])
+        self.user_factors = np.asarray(state["user_factors"], dtype=float).copy()
+        self.item_factors = np.asarray(state["item_factors"], dtype=float).copy()
+        self.user_bias = np.asarray(state["user_bias"], dtype=float).copy()
+        self.item_bias = np.asarray(state["item_bias"], dtype=float).copy()

@@ -41,6 +41,7 @@ class ExperimentConfig:
     mf_epochs: int = 15
     mf_learning_rate: float = 0.03
     mf_regularization: float = 0.03
+    mf_patience: int | None = 5
 
     @classmethod
     def from_mapping(cls, values: dict[str, Any]) -> "ExperimentConfig":
@@ -177,6 +178,7 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
             epochs=config.mf_epochs,
             learning_rate=config.mf_learning_rate,
             regularization=config.mf_regularization,
+            patience=config.mf_patience,
             seed=config.seed,
         ),
     }

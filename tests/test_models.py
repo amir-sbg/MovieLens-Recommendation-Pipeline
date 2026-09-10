@@ -80,6 +80,32 @@ def test_matrix_factorization_trains_and_predicts() -> None:
     assert predictions.max() <= 5.0
 
 
+def test_matrix_factorization_early_stops_on_flat_validation() -> None:
+    data = prepare_recommendation_data(users=12, items=30, density=0.25, seed=19)
+    model = MatrixFactorizationRecommender(
+        factors=6,
+        epochs=8,
+        learning_rate=0.0,
+        patience=1,
+        min_delta=1e-8,
+        seed=19,
+    )
+
+    model.fit(data.train, validation=data.validation, n_users=data.n_users, n_items=data.n_items)
+
+    assert len(model.history) == 2
+    assert "validation_rmse" in model.history[0]
+
+
+def test_matrix_factorization_rejects_bad_training_settings() -> None:
+    data = prepare_recommendation_data(users=8, items=20, density=0.3, seed=18)
+
+    with pytest.raises(ValueError, match="patience"):
+        MatrixFactorizationRecommender(patience=0).fit(data.train)
+    with pytest.raises(ValueError, match="learning_rate"):
+        MatrixFactorizationRecommender(learning_rate=-0.1).fit(data.train)
+
+
 def test_matrix_factorization_recommendations_exclude_seen() -> None:
     data = prepare_recommendation_data(users=10, items=25, density=0.3, seed=14)
     seen = user_seen_items(data.train)
