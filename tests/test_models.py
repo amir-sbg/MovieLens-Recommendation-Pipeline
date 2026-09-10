@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
+import pytest
 
 from recsys_lab.data import prepare_recommendation_data, user_seen_items
 from recsys_lab.models import (
@@ -19,6 +21,30 @@ def test_popularity_recommender_excludes_seen_items() -> None:
 
     assert len(recommendations) == 5
     assert set(recommendations).isdisjoint(seen[0])
+
+
+def test_popularity_recommender_shrinks_sparse_item_means() -> None:
+    interactions = pd.DataFrame(
+        {
+            "user_idx": [0, 1, 2, 3],
+            "item_idx": [0, 1, 1, 1],
+            "rating": [5.0, 3.0, 4.0, 4.0],
+        }
+    )
+
+    no_prior = PopularityRecommender(prior_weight=0.0).fit(interactions, n_items=2)
+    smoothed = PopularityRecommender(prior_weight=10.0).fit(interactions, n_items=2)
+
+    assert no_prior.item_means[0] == 5.0
+    assert smoothed.item_means[0] < 5.0
+    assert smoothed.item_means[0] > smoothed.global_mean
+
+
+def test_popularity_recommender_rejects_negative_prior() -> None:
+    data = prepare_recommendation_data(users=8, items=20, density=0.3, seed=11)
+
+    with pytest.raises(ValueError, match="prior_weight"):
+        PopularityRecommender(prior_weight=-1.0).fit(data.train)
 
 
 def test_item_knn_scores_and_recommends() -> None:

@@ -33,6 +33,7 @@ def _best_items_from_scores(scores: np.ndarray, seen_items: set[int], k: int) ->
 
 @dataclass
 class PopularityRecommender:
+    prior_weight: float = 12.0
     item_scores: np.ndarray | None = None
     item_means: np.ndarray | None = None
     item_counts: np.ndarray | None = None
@@ -44,19 +45,25 @@ class PopularityRecommender:
         n_users: int | None = None,
         n_items: int | None = None,
     ) -> "PopularityRecommender":
+        if self.prior_weight < 0:
+            raise ValueError("prior_weight must not be negative")
         _, items = _infer_shape(interactions, n_users, n_items)
         self.global_mean = float(interactions["rating"].mean())
         self.item_means = np.full(items, self.global_mean, dtype=float)
         self.item_counts = np.zeros(items, dtype=float)
 
-        grouped = interactions.groupby("item_idx")["rating"].agg(["mean", "count"])
+        grouped = interactions.groupby("item_idx")["rating"].agg(["sum", "count"])
         for item_idx, row in grouped.iterrows():
             idx = int(item_idx)
-            self.item_means[idx] = float(row["mean"])
+            count = float(row["count"])
+            self.item_means[idx] = float(
+                (row["sum"] + self.prior_weight * self.global_mean)
+                / (count + self.prior_weight)
+            )
             self.item_counts[idx] = float(row["count"])
 
         confidence = np.log1p(self.item_counts)
-        self.item_scores = self.item_means + 0.08 * confidence
+        self.item_scores = self.item_means + 0.06 * confidence
         return self
 
     def predict_pairs(self, user_indices: np.ndarray, item_indices: np.ndarray) -> np.ndarray:
