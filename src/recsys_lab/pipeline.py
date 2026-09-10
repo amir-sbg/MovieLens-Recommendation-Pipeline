@@ -13,7 +13,14 @@ from recsys_lab.data import (
     prepare_recommendation_data,
     user_seen_items,
 )
-from recsys_lab.metrics import catalog_coverage, personalization, ranking_metrics, rating_metrics
+from recsys_lab.metrics import (
+    catalog_coverage,
+    long_tail_share_at_k,
+    novelty_at_k,
+    personalization,
+    ranking_metrics,
+    rating_metrics,
+)
 from recsys_lab.models import ItemKNNRecommender, MatrixFactorizationRecommender, PopularityRecommender
 
 
@@ -78,6 +85,8 @@ def _model_rows(
     ranking: dict[str, float],
     coverage: float,
     diversity: float,
+    novelty: float,
+    long_tail_share: float,
     fit_seconds: float,
 ) -> dict[str, float | str]:
     return {
@@ -92,6 +101,8 @@ def _model_rows(
         "hit_rate": ranking["hit_rate"],
         "catalog_coverage": coverage,
         "personalization": diversity,
+        "novelty_at_k": novelty,
+        "long_tail_share_at_k": long_tail_share,
         "fit_seconds": fit_seconds,
     }
 
@@ -117,13 +128,13 @@ def _write_markdown_report(summary: dict[str, Any], path: Path) -> None:
         "",
         "## Model comparison",
         "",
-        "| model | val RMSE | test RMSE | Recall@K | MAP@K | NDCG@K | coverage |",
+        "| model | val RMSE | test RMSE | Recall@K | NDCG@K | novelty | long-tail |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for row in metrics:
         lines.append(
             "| {model} | {validation_rmse:.4f} | {test_rmse:.4f} | {recall_at_k:.4f} | "
-            "{map_at_k:.4f} | {ndcg_at_k:.4f} | {catalog_coverage:.4f} |".format(**row)
+            "{ndcg_at_k:.4f} | {novelty_at_k:.4f} | {long_tail_share_at_k:.4f} |".format(**row)
         )
     lines.extend(
         [
@@ -152,6 +163,11 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
     seen = user_seen_items(data.train)
     heldout = user_seen_items(data.test)
     eval_users = sorted(heldout)
+    item_popularity = {
+        int(item): int(count)
+        for item, count in data.train.groupby("item_idx")["rating"].count().items()
+    }
+    total_interactions = int(len(data.train))
 
     models = {
         "popularity": PopularityRecommender(),
@@ -186,6 +202,17 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
             ranking=rank,
             coverage=catalog_coverage(recommendations, data.n_items),
             diversity=personalization(recommendations),
+            novelty=novelty_at_k(
+                recommendations,
+                item_popularity,
+                total_interactions,
+                config.top_k,
+            ),
+            long_tail_share=long_tail_share_at_k(
+                recommendations,
+                item_popularity,
+                k=config.top_k,
+            ),
             fit_seconds=fit_seconds,
         )
         metric_rows.append(row)

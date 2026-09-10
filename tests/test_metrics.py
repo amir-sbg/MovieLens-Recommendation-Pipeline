@@ -5,7 +5,9 @@ import pytest
 from recsys_lab.metrics import (
     average_precision_at_k,
     catalog_coverage,
+    long_tail_share_at_k,
     ndcg_at_k,
+    novelty_at_k,
     personalization,
     precision_at_k,
     ranking_metrics,
@@ -53,3 +55,24 @@ def test_coverage_and_personalization() -> None:
 
     assert catalog_coverage(recs, n_items=10) == pytest.approx(0.5)
     assert personalization(recs) > 0.0
+
+
+def test_novelty_is_higher_for_less_popular_items() -> None:
+    popular = {0: [1], 1: [1]}
+    long_tail = {0: [9], 1: [9]}
+    popularity = {1: 50, 9: 2}
+
+    assert novelty_at_k(long_tail, popularity, total_interactions=100) > novelty_at_k(
+        popular,
+        popularity,
+        total_interactions=100,
+    )
+
+
+def test_long_tail_share_tracks_less_common_recommendations() -> None:
+    recs = {0: [1, 2], 1: [3, 4]}
+    popularity = {1: 100, 2: 5, 3: 3, 4: 80}
+
+    assert long_tail_share_at_k(recs, popularity, quantile=0.5, k=2) == pytest.approx(0.5)
+    with pytest.raises(ValueError, match="quantile"):
+        long_tail_share_at_k(recs, popularity, quantile=1.0)

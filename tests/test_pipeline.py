@@ -39,7 +39,13 @@ def test_pipeline_writes_reports_and_artifacts(tmp_path) -> None:
 
     metrics = pd.read_csv(metrics_path)
     assert set(metrics["model"]) == {"popularity", "item_knn", "matrix_factorization"}
-    assert {"recall_at_k", "catalog_coverage", "fit_seconds"}.issubset(metrics.columns)
+    assert {
+        "recall_at_k",
+        "catalog_coverage",
+        "novelty_at_k",
+        "long_tail_share_at_k",
+        "fit_seconds",
+    }.issubset(metrics.columns)
 
     with summary_path.open("r", encoding="utf-8") as handle:
         saved = json.load(handle)

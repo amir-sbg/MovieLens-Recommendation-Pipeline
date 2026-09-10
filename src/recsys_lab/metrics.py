@@ -146,3 +146,41 @@ def personalization(recommendations_by_user: dict[int, list[int]]) -> float:
     if not similarities:
         return 0.0
     return float(1.0 - np.mean(similarities))
+
+
+def novelty_at_k(
+    recommendations_by_user: dict[int, list[int]],
+    item_popularity: dict[int, int],
+    total_interactions: int,
+    k: int = 10,
+) -> float:
+    if total_interactions < 1:
+        raise ValueError("total_interactions must be positive")
+    values = []
+    for recommendations in recommendations_by_user.values():
+        for item in _top_k(recommendations, k):
+            probability = item_popularity.get(int(item), 0) / total_interactions
+            values.append(-float(np.log2(max(probability, 1.0 / total_interactions))))
+    return float(np.mean(values)) if values else 0.0
+
+
+def long_tail_share_at_k(
+    recommendations_by_user: dict[int, list[int]],
+    item_popularity: dict[int, int],
+    quantile: float = 0.50,
+    k: int = 10,
+) -> float:
+    if not 0.0 < quantile < 1.0:
+        raise ValueError("quantile must be between 0 and 1")
+    if not item_popularity:
+        return 0.0
+    cutoff = float(np.quantile(list(item_popularity.values()), quantile))
+    items = [
+        int(item)
+        for recommendations in recommendations_by_user.values()
+        for item in _top_k(recommendations, k)
+    ]
+    if not items:
+        return 0.0
+    tail_items = [item for item in items if item_popularity.get(item, 0) <= cutoff]
+    return len(tail_items) / len(items)
