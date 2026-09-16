@@ -100,7 +100,11 @@ def normalize_interactions(interactions: pd.DataFrame) -> pd.DataFrame:
     if not frame["rating"].between(1, 5).all():
         raise ValueError("ratings must be in the 1-5 range")
     frame["timestamp"] = frame["timestamp"].astype(int)
-    return frame.sort_values(["user_id", "timestamp", "item_id"]).reset_index(drop=True)
+    frame = frame.sort_values(["user_id", "timestamp", "item_id"])
+    return frame.drop_duplicates(
+        subset=["user_id", "item_id"],
+        keep="last",
+    ).reset_index(drop=True)
 
 
 def filter_min_interactions(

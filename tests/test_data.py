@@ -7,6 +7,7 @@ from recsys_lab.data import (
     encode_splits,
     filter_min_interactions,
     generate_synthetic_ratings,
+    normalize_interactions,
     prepare_recommendation_data,
     relevant_items_by_user,
     temporal_user_split,
@@ -63,6 +64,22 @@ def test_filter_min_interactions_rejects_empty_result() -> None:
 
     with pytest.raises(ValueError, match="no users remain"):
         filter_min_interactions(frame, min_interactions=3)
+
+
+def test_normalization_keeps_latest_duplicate_user_item_event() -> None:
+    frame = pd.DataFrame(
+        {
+            "user_id": ["u1", "u1", "u1"],
+            "item_id": ["i1", "i1", "i2"],
+            "rating": [3, 5, 4],
+            "timestamp": [10, 20, 15],
+        }
+    )
+
+    normalized = normalize_interactions(frame)
+
+    assert len(normalized) == 2
+    assert normalized.loc[normalized["item_id"] == "i1", "rating"].iloc[0] == 5
 
 
 def test_seen_and_relevant_items_are_grouped_by_user() -> None:
