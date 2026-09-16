@@ -136,3 +136,26 @@ def test_matrix_factorization_recommendations_exclude_seen() -> None:
 
     assert len(recommendations) == 5
     assert set(recommendations).isdisjoint(seen[0])
+
+
+def test_matrix_factorization_artifact_round_trip(tmp_path) -> None:
+    data = prepare_recommendation_data(users=8, items=18, density=0.35, seed=22)
+    model = MatrixFactorizationRecommender(factors=4, epochs=2, seed=22).fit(
+        data.train,
+        n_users=data.n_users,
+        n_items=data.n_items,
+    )
+    path = tmp_path / "mf.npz"
+    model.save_npz(path)
+    restored = MatrixFactorizationRecommender.load_npz(path)
+
+    np.testing.assert_allclose(
+        model.predict_pairs(
+            data.test["user_idx"].to_numpy(),
+            data.test["item_idx"].to_numpy(),
+        ),
+        restored.predict_pairs(
+            data.test["user_idx"].to_numpy(),
+            data.test["item_idx"].to_numpy(),
+        ),
+    )

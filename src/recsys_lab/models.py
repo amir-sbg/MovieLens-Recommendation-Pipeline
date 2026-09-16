@@ -322,6 +322,36 @@ class MatrixFactorizationRecommender:
             item_bias=self.item_bias,
         )
 
+    @classmethod
+    def load_npz(cls, path: Path) -> "MatrixFactorizationRecommender":
+        with np.load(path) as payload:
+            required = {"global_mean", "user_factors", "item_factors", "user_bias", "item_bias"}
+            missing = required.difference(payload.files)
+            if missing:
+                raise ValueError(f"matrix factorization artifact is missing: {sorted(missing)}")
+            user_factors = np.asarray(payload["user_factors"], dtype=float)
+            item_factors = np.asarray(payload["item_factors"], dtype=float)
+            user_bias = np.asarray(payload["user_bias"], dtype=float)
+            item_bias = np.asarray(payload["item_bias"], dtype=float)
+            global_mean = float(np.asarray(payload["global_mean"]).reshape(-1)[0])
+
+        if user_factors.ndim != 2 or item_factors.ndim != 2:
+            raise ValueError("factor arrays must be 2-D")
+        if user_factors.shape[1] != item_factors.shape[1]:
+            raise ValueError("user and item factors must use the same number of factors")
+        if user_bias.shape != (user_factors.shape[0],):
+            raise ValueError("user bias shape does not match user factors")
+        if item_bias.shape != (item_factors.shape[0],):
+            raise ValueError("item bias shape does not match item factors")
+
+        model = cls(factors=user_factors.shape[1], epochs=1)
+        model.global_mean = global_mean
+        model.user_factors = user_factors
+        model.item_factors = item_factors
+        model.user_bias = user_bias
+        model.item_bias = item_bias
+        return model
+
     def _validate_training_settings(self) -> None:
         if self.factors < 1 or self.epochs < 1:
             raise ValueError("factors and epochs must be positive")
