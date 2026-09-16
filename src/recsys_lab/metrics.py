@@ -69,6 +69,15 @@ def average_precision_at_k(recommended: list[int], relevant: set[int], k: int) -
     return precision_sum / min(len(relevant), k)
 
 
+def reciprocal_rank_at_k(recommended: list[int], relevant: set[int], k: int) -> float:
+    if not relevant:
+        return 0.0
+    for rank, item in enumerate(_top_k(recommended, k), start=1):
+        if item in relevant:
+            return 1.0 / rank
+    return 0.0
+
+
 def ndcg_at_k(recommended: list[int], relevant: set[int], k: int) -> float:
     if not relevant:
         return 0.0
@@ -94,6 +103,7 @@ def ranking_metrics(
             "precision_at_k": 0.0,
             "recall_at_k": 0.0,
             "map_at_k": 0.0,
+            "mrr_at_k": 0.0,
             "ndcg_at_k": 0.0,
             "hit_rate": 0.0,
         }
@@ -101,6 +111,7 @@ def ranking_metrics(
     precisions = []
     recalls = []
     average_precisions = []
+    reciprocal_ranks = []
     ndcgs = []
     hits = []
     for user in users:
@@ -109,6 +120,7 @@ def ranking_metrics(
         precisions.append(precision_at_k(recommended, relevant, k))
         recalls.append(recall_at_k(recommended, relevant, k))
         average_precisions.append(average_precision_at_k(recommended, relevant, k))
+        reciprocal_ranks.append(reciprocal_rank_at_k(recommended, relevant, k))
         ndcgs.append(ndcg_at_k(recommended, relevant, k))
         hits.append(float(any(item in relevant for item in _top_k(recommended, k))))
 
@@ -117,6 +129,7 @@ def ranking_metrics(
         "precision_at_k": float(np.mean(precisions)),
         "recall_at_k": float(np.mean(recalls)),
         "map_at_k": float(np.mean(average_precisions)),
+        "mrr_at_k": float(np.mean(reciprocal_ranks)),
         "ndcg_at_k": float(np.mean(ndcgs)),
         "hit_rate": float(np.mean(hits)),
     }

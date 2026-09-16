@@ -98,6 +98,7 @@ def _model_rows(
         "test_mae": test_rating["mae"],
         "recall_at_k": ranking["recall_at_k"],
         "map_at_k": ranking["map_at_k"],
+        "mrr_at_k": ranking["mrr_at_k"],
         "ndcg_at_k": ranking["ndcg_at_k"],
         "hit_rate": ranking["hit_rate"],
         "catalog_coverage": coverage,

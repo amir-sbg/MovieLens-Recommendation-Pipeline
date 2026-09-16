@@ -11,6 +11,7 @@ from recsys_lab.metrics import (
     personalization,
     precision_at_k,
     ranking_metrics,
+    reciprocal_rank_at_k,
     recall_at_k,
     rating_metrics,
     rmse,
@@ -37,6 +38,7 @@ def test_top_k_ranking_metrics() -> None:
     assert recall_at_k(recommended, relevant, k=3) == pytest.approx(1.0)
     assert average_precision_at_k(recommended, relevant, k=3) == pytest.approx((1 / 2 + 2 / 3) / 2)
     assert ndcg_at_k(recommended, relevant, k=3) > 0.0
+    assert reciprocal_rank_at_k(recommended, relevant, k=3) == pytest.approx(0.5)
 
 
 def test_ranking_metrics_average_across_users() -> None:
@@ -48,6 +50,7 @@ def test_ranking_metrics_average_across_users() -> None:
     assert metrics["users"] == 2
     assert metrics["hit_rate"] == pytest.approx(0.5)
     assert metrics["recall_at_k"] == pytest.approx(0.5)
+    assert metrics["mrr_at_k"] == pytest.approx(0.25)
 
 
 def test_coverage_and_personalization() -> None:
