@@ -80,6 +80,26 @@ def test_matrix_factorization_trains_and_predicts() -> None:
     assert predictions.max() <= 5.0
 
 
+def test_matrix_factorization_falls_back_for_unknown_ids() -> None:
+    data = prepare_recommendation_data(users=10, items=14, density=0.35, seed=4)
+    model = MatrixFactorizationRecommender(factors=4, epochs=2, seed=4).fit(
+        data.train,
+        validation=data.validation,
+        n_users=data.n_users,
+        n_items=data.n_items,
+    )
+
+    predictions = model.predict_pairs(
+        np.array([data.n_users + 1, 0]),
+        np.array([0, data.n_items + 1]),
+    )
+    cold_scores = model.scores_for_user(data.n_users + 1)
+
+    assert predictions.shape == (2,)
+    assert np.all((predictions >= 1.0) & (predictions <= 5.0))
+    assert cold_scores.shape == (data.n_items,)
+
+
 def test_matrix_factorization_early_stops_on_flat_validation() -> None:
     data = prepare_recommendation_data(users=12, items=30, density=0.25, seed=19)
     model = MatrixFactorizationRecommender(

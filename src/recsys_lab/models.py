@@ -271,7 +271,16 @@ class MatrixFactorizationRecommender:
         item_indices = np.asarray(item_indices, dtype=int)
         if user_indices.shape != item_indices.shape:
             raise ValueError("user_indices and item_indices must have the same shape")
-        predictions = [self._raw_predict(int(user), int(item)) for user, item in zip(user_indices, item_indices)]
+        if self.user_factors is None or self.item_factors is None:
+            raise RuntimeError("fit the matrix factorization model before prediction")
+        predictions = []
+        for user, item in zip(user_indices, item_indices):
+            if 0 <= user < len(self.user_factors) and 0 <= item < len(self.item_factors):
+                predictions.append(self._raw_predict(int(user), int(item)))
+            elif 0 <= item < len(self.item_factors):
+                predictions.append(self.global_mean + self.item_bias[item])
+            else:
+                predictions.append(self.global_mean)
         return np.clip(np.asarray(predictions, dtype=float), 1.0, 5.0)
 
     def scores_for_user(self, user_idx: int) -> np.ndarray:
@@ -282,6 +291,8 @@ class MatrixFactorizationRecommender:
             or self.item_bias is None
         ):
             raise RuntimeError("fit the matrix factorization model before scoring")
+        if not 0 <= user_idx < len(self.user_factors):
+            return np.clip(self.global_mean + self.item_bias, 1.0, 5.0)
         scores = (
             self.global_mean
             + self.user_bias[user_idx]
