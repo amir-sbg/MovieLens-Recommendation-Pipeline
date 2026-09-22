@@ -28,9 +28,11 @@ def mae(y_true: Iterable[float], y_pred: Iterable[float]) -> float:
 
 
 def rating_metrics(y_true: Iterable[float], y_pred: Iterable[float]) -> dict[str, float]:
+    true = np.asarray(list(y_true), dtype=float)
+    pred = np.asarray(list(y_pred), dtype=float)
     return {
-        "rmse": rmse(y_true, y_pred),
-        "mae": mae(y_true, y_pred),
+        "rmse": rmse(true, pred),
+        "mae": mae(true, pred),
     }
 
 

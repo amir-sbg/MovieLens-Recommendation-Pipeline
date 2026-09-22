@@ -25,6 +25,12 @@ def test_rating_metrics_are_computed() -> None:
     assert metrics["rmse"] == pytest.approx(rmse([5, 4, 1], [4, 4, 2]))
 
 
+def test_rating_metrics_accept_one_pass_iterables() -> None:
+    metrics = rating_metrics((value for value in [5, 4, 1]), (value for value in [4, 4, 2]))
+
+    assert metrics["mae"] == pytest.approx(2 / 3)
+
+
 def test_rating_metrics_reject_shape_mismatch() -> None:
     with pytest.raises(ValueError, match="same shape"):
         rmse([1, 2], [1])
