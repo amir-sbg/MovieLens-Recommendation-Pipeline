@@ -14,6 +14,7 @@ from recsys_lab.metrics import (
     personalization,
     precision_at_k,
     ranking_metrics,
+    recall_by_popularity_segment,
     reciprocal_rank_at_k,
     recall_at_k,
     rating_metrics,
@@ -131,3 +132,16 @@ def test_long_tail_share_tracks_less_common_recommendations() -> None:
     assert long_tail_share_at_k(recs, popularity, quantile=0.5, k=2) == pytest.approx(0.5)
     with pytest.raises(ValueError, match="quantile"):
         long_tail_share_at_k(recs, popularity, quantile=1.0)
+
+
+def test_segment_recall_separates_head_and_tail_hits() -> None:
+    recs = {0: [1, 4], 1: [2, 5]}
+    relevant = {0: {1, 5}, 1: {2, 4}}
+    popularity = {1: 100, 2: 80, 4: 4, 5: 2}
+
+    metrics = recall_by_popularity_segment(recs, relevant, popularity, quantile=0.5, k=2)
+
+    assert metrics["head_recall_at_k"] == 1.0
+    assert metrics["tail_recall_at_k"] == 0.0
+    assert metrics["head_relevant_items"] == 2
+    assert metrics["tail_relevant_items"] == 2

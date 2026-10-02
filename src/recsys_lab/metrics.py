@@ -291,3 +291,39 @@ def long_tail_share_at_k(
         return 0.0
     tail_items = [item for item in items if item_popularity.get(item, 0) <= cutoff]
     return len(tail_items) / len(items)
+
+
+def recall_by_popularity_segment(
+    recommendations_by_user: dict[int, list[int]],
+    relevant_by_user: dict[int, set[int]],
+    item_popularity: dict[int, int],
+    quantile: float = 0.50,
+    k: int = 10,
+) -> dict[str, float]:
+    if not 0.0 < quantile < 1.0:
+        raise ValueError("quantile must be between 0 and 1")
+    if not item_popularity:
+        return {
+            "head_recall_at_k": 0.0,
+            "tail_recall_at_k": 0.0,
+            "head_relevant_items": 0.0,
+            "tail_relevant_items": 0.0,
+        }
+
+    cutoff = float(np.quantile(list(item_popularity.values()), quantile))
+    head_hits = tail_hits = head_total = tail_total = 0
+    for user, relevant in relevant_by_user.items():
+        top = set(_top_k(recommendations_by_user.get(user, []), k))
+        for item in relevant:
+            if item_popularity.get(int(item), 0) <= cutoff:
+                tail_total += 1
+                tail_hits += int(item in top)
+            else:
+                head_total += 1
+                head_hits += int(item in top)
+    return {
+        "head_recall_at_k": head_hits / head_total if head_total else 0.0,
+        "tail_recall_at_k": tail_hits / tail_total if tail_total else 0.0,
+        "head_relevant_items": float(head_total),
+        "tail_relevant_items": float(tail_total),
+    }
