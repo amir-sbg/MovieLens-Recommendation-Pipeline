@@ -5,9 +5,11 @@ import pytest
 from recsys_lab.metrics import (
     average_precision_at_k,
     catalog_coverage,
+    exposure_gini,
     long_tail_share_at_k,
     ndcg_at_k,
     novelty_at_k,
+    normalized_exposure_entropy,
     personalization,
     precision_at_k,
     ranking_metrics,
@@ -73,6 +75,21 @@ def test_coverage_and_personalization() -> None:
 
     assert catalog_coverage(recs, n_items=10) == pytest.approx(0.5)
     assert personalization(recs) > 0.0
+
+
+def test_exposure_metrics_detect_catalog_concentration() -> None:
+    concentrated = {0: [0, 1], 1: [0, 1], 2: [0, 1]}
+    spread = {0: [0, 1], 1: [2, 3], 2: [4, 5]}
+
+    assert exposure_gini(concentrated, n_items=6, k=2) > exposure_gini(spread, n_items=6, k=2)
+    assert normalized_exposure_entropy(concentrated, n_items=6, k=2) < normalized_exposure_entropy(
+        spread, n_items=6, k=2
+    )
+
+
+def test_exposure_metrics_validate_catalog_indices() -> None:
+    with pytest.raises(ValueError, match="outside the catalog"):
+        exposure_gini({0: [5]}, n_items=5)
 
 
 def test_novelty_is_higher_for_less_popular_items() -> None:

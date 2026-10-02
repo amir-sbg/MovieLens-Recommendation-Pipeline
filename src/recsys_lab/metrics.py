@@ -172,6 +172,49 @@ def personalization(recommendations_by_user: dict[int, list[int]]) -> float:
     return float(1.0 - np.mean(similarities))
 
 
+def recommendation_exposure(
+    recommendations_by_user: dict[int, list[int]],
+    n_items: int,
+    k: int = 10,
+) -> np.ndarray:
+    if n_items < 1:
+        raise ValueError("n_items must be positive")
+    exposure = np.zeros(n_items, dtype=float)
+    for recommendations in recommendations_by_user.values():
+        for item in _top_k(recommendations, k):
+            if not 0 <= int(item) < n_items:
+                raise ValueError("recommended item index is outside the catalog")
+            exposure[int(item)] += 1.0
+    return exposure
+
+
+def exposure_gini(
+    recommendations_by_user: dict[int, list[int]],
+    n_items: int,
+    k: int = 10,
+) -> float:
+    exposure = np.sort(recommendation_exposure(recommendations_by_user, n_items, k))
+    total = float(exposure.sum())
+    if total == 0.0:
+        return 0.0
+    ranks = np.arange(1, n_items + 1, dtype=float)
+    return float(np.sum((2.0 * ranks - n_items - 1.0) * exposure) / (n_items * total))
+
+
+def normalized_exposure_entropy(
+    recommendations_by_user: dict[int, list[int]],
+    n_items: int,
+    k: int = 10,
+) -> float:
+    exposure = recommendation_exposure(recommendations_by_user, n_items, k)
+    total = float(exposure.sum())
+    if total == 0.0 or n_items == 1:
+        return 0.0
+    probabilities = exposure[exposure > 0] / total
+    entropy = -float(np.sum(probabilities * np.log(probabilities)))
+    return entropy / float(np.log(n_items))
+
+
 def novelty_at_k(
     recommendations_by_user: dict[int, list[int]],
     item_popularity: dict[int, int],
