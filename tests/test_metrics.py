@@ -4,6 +4,7 @@ import pytest
 
 from recsys_lab.metrics import (
     average_precision_at_k,
+    bootstrap_ranking_intervals,
     catalog_coverage,
     exposure_gini,
     long_tail_share_at_k,
@@ -68,6 +69,25 @@ def test_ranking_metrics_average_across_users() -> None:
     assert metrics["hit_rate"] == pytest.approx(0.5)
     assert metrics["recall_at_k"] == pytest.approx(0.5)
     assert metrics["mrr_at_k"] == pytest.approx(0.25)
+
+
+def test_bootstrap_ranking_intervals_are_reproducible() -> None:
+    recs = {0: [1, 2], 1: [3, 4], 2: [5, 6], 3: [7, 8]}
+    relevant = {0: {1}, 1: {9}, 2: {5}, 3: {10}}
+
+    first = bootstrap_ranking_intervals(recs, relevant, k=2, n_resamples=200, seed=9)
+    second = bootstrap_ranking_intervals(recs, relevant, k=2, n_resamples=200, seed=9)
+
+    assert first == second
+    assert first["recall_at_k_ci_low"] <= 0.5 <= first["recall_at_k_ci_high"]
+    assert first["ndcg_at_k_ci_low"] <= first["ndcg_at_k_ci_high"]
+
+
+def test_bootstrap_ranking_intervals_validate_settings() -> None:
+    with pytest.raises(ValueError, match="n_resamples"):
+        bootstrap_ranking_intervals({}, {}, n_resamples=0)
+    with pytest.raises(ValueError, match="confidence"):
+        bootstrap_ranking_intervals({}, {}, confidence=1.0)
 
 
 def test_coverage_and_personalization() -> None:
