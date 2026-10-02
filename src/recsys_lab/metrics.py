@@ -39,7 +39,16 @@ def rating_metrics(y_true: Iterable[float], y_pred: Iterable[float]) -> dict[str
 def _top_k(items: list[int], k: int) -> list[int]:
     if k < 1:
         raise ValueError("k must be positive")
-    return items[:k]
+    unique = []
+    seen = set()
+    for item in items:
+        if item in seen:
+            continue
+        unique.append(item)
+        seen.add(item)
+        if len(unique) == k:
+            break
+    return unique
 
 
 def precision_at_k(recommended: list[int], relevant: set[int], k: int) -> float:

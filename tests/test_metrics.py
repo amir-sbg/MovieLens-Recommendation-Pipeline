@@ -47,6 +47,15 @@ def test_top_k_ranking_metrics() -> None:
     assert reciprocal_rank_at_k(recommended, relevant, k=3) == pytest.approx(0.5)
 
 
+def test_ranking_metrics_do_not_count_duplicate_recommendations_twice() -> None:
+    recommended = [3, 3, 8, 2]
+    relevant = {2, 3}
+
+    assert precision_at_k(recommended, relevant, k=3) == pytest.approx(2 / 3)
+    assert recall_at_k(recommended, relevant, k=3) == pytest.approx(1.0)
+    assert average_precision_at_k(recommended, relevant, k=3) <= 1.0
+
+
 def test_ranking_metrics_average_across_users() -> None:
     recs = {0: [1, 2, 3], 1: [4, 5, 6]}
     relevant = {0: {2}, 1: {9}}
