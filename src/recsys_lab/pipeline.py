@@ -14,11 +14,15 @@ from recsys_lab.data import (
     user_seen_items,
 )
 from recsys_lab.metrics import (
+    bootstrap_ranking_intervals,
     catalog_coverage,
+    exposure_gini,
     long_tail_share_at_k,
     novelty_at_k,
+    normalized_exposure_entropy,
     personalization,
     ranking_metrics,
+    recall_by_popularity_segment,
     rating_metrics,
 )
 from recsys_lab.models import ItemKNNRecommender, MatrixFactorizationRecommender, PopularityRecommender
@@ -42,6 +46,7 @@ class ExperimentConfig:
     mf_learning_rate: float = 0.03
     mf_regularization: float = 0.03
     mf_patience: int | None = 5
+    bootstrap_resamples: int = 300
 
     @classmethod
     def from_mapping(cls, values: dict[str, Any]) -> "ExperimentConfig":
@@ -84,8 +89,12 @@ def _model_rows(
     validation_rating: dict[str, float],
     test_rating: dict[str, float],
     ranking: dict[str, float],
+    ranking_intervals: dict[str, float],
+    segment_recall: dict[str, float],
     coverage: float,
     diversity: float,
+    exposure_gini_value: float,
+    exposure_entropy: float,
     novelty: float,
     long_tail_share: float,
     fit_seconds: float,
@@ -101,8 +110,12 @@ def _model_rows(
         "mrr_at_k": ranking["mrr_at_k"],
         "ndcg_at_k": ranking["ndcg_at_k"],
         "hit_rate": ranking["hit_rate"],
+        **ranking_intervals,
+        **segment_recall,
         "catalog_coverage": coverage,
         "personalization": diversity,
+        "exposure_gini": exposure_gini_value,
+        "exposure_entropy": exposure_entropy,
         "novelty_at_k": novelty,
         "long_tail_share_at_k": long_tail_share,
         "fit_seconds": fit_seconds,
@@ -130,13 +143,14 @@ def _write_markdown_report(summary: dict[str, Any], path: Path) -> None:
         "",
         "## Model comparison",
         "",
-        "| model | val RMSE | test RMSE | Recall@K | NDCG@K | novelty | long-tail |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| model | test RMSE | Recall@K (95% CI) | NDCG@K | tail recall | exposure Gini |",
+        "| --- | ---: | ---: | ---: | ---: | ---: |",
     ]
     for row in metrics:
         lines.append(
-            "| {model} | {validation_rmse:.4f} | {test_rmse:.4f} | {recall_at_k:.4f} | "
-            "{ndcg_at_k:.4f} | {novelty_at_k:.4f} | {long_tail_share_at_k:.4f} |".format(**row)
+            "| {model} | {test_rmse:.4f} | {recall_at_k:.4f} "
+            "[{recall_at_k_ci_low:.4f}, {recall_at_k_ci_high:.4f}] | {ndcg_at_k:.4f} | "
+            "{tail_recall_at_k:.4f} | {exposure_gini:.4f} |".format(**row)
         )
     lines.extend(
         [
@@ -198,13 +212,32 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
 
         recommendations = _recommend_for_users(model, eval_users, seen, config.top_k)
         rank = ranking_metrics(recommendations, heldout, k=config.top_k)
+        intervals = bootstrap_ranking_intervals(
+            recommendations,
+            heldout,
+            k=config.top_k,
+            n_resamples=config.bootstrap_resamples,
+            seed=config.seed,
+        )
+        segment_recall = recall_by_popularity_segment(
+            recommendations,
+            heldout,
+            item_popularity,
+            k=config.top_k,
+        )
         row = _model_rows(
             model_name=model_name,
             validation_rating=_predict_frame(model, data.validation),
             test_rating=_predict_frame(model, data.test),
             ranking=rank,
+            ranking_intervals=intervals,
+            segment_recall=segment_recall,
             coverage=catalog_coverage(recommendations, data.n_items),
             diversity=personalization(recommendations),
+            exposure_gini_value=exposure_gini(recommendations, data.n_items, config.top_k),
+            exposure_entropy=normalized_exposure_entropy(
+                recommendations, data.n_items, config.top_k
+            ),
             novelty=novelty_at_k(
                 recommendations,
                 item_popularity,

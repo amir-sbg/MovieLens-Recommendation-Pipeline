@@ -25,6 +25,7 @@ def _run_from_args(args: argparse.Namespace) -> dict[str, object]:
         mf_learning_rate=args.mf_learning_rate,
         mf_regularization=args.mf_regularization,
         mf_patience=args.mf_patience,
+        bootstrap_resamples=args.bootstrap_resamples,
     )
     return run_experiment(config)
 
@@ -50,6 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--mf-learning-rate", type=float, default=0.03)
     run_parser.add_argument("--mf-regularization", type=float, default=0.03)
     run_parser.add_argument("--mf-patience", type=int, default=5)
+    run_parser.add_argument("--bootstrap-resamples", type=int, default=300)
     run_parser.set_defaults(func=_run_from_args)
 
     config_parser = subparsers.add_parser("run-config", help="Run an experiment from a JSON config.")

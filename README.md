@@ -25,7 +25,8 @@ ratings
 - Popularity recommender with Bayesian count-aware smoothing
 - Item-item collaborative filtering with cosine similarity and shrinkage
 - Matrix factorization trained with explicit-feedback SGD and validation early stopping
-- Ranking metrics: Recall@K, MAP@K, NDCG@K, hit rate, catalog coverage, personalization, novelty, long-tail share
+- Ranking metrics: Recall@K, MAP@K, NDCG@K, hit rate, and bootstrap confidence intervals
+- Catalog diagnostics: coverage, personalization, novelty, exposure concentration, and head/tail recall
 - Rating metrics: RMSE and MAE
 - CLI runner, reproducible config, saved reports, and unit tests
 

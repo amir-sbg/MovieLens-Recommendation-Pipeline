@@ -44,6 +44,12 @@ def test_pipeline_writes_reports_and_artifacts(tmp_path) -> None:
         "catalog_coverage",
         "novelty_at_k",
         "long_tail_share_at_k",
+        "tail_recall_at_k",
+        "head_recall_at_k",
+        "recall_at_k_ci_low",
+        "recall_at_k_ci_high",
+        "exposure_gini",
+        "exposure_entropy",
         "fit_seconds",
     }.issubset(metrics.columns)
 
