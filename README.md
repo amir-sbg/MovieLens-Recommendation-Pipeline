@@ -28,6 +28,7 @@ ratings
 - Matrix factorization trained with explicit-feedback SGD and validation early stopping
 - Bayesian Personalized Ranking (BPR) with sampled positive/negative item pairs
 - Ranking metrics: Recall@K, MAP@K, NDCG@K, hit rate, and bootstrap confidence intervals
+- Paired bootstrap deltas against the popularity baseline for Recall@K and NDCG@K
 - Catalog diagnostics: coverage, personalization, novelty, exposure concentration, and head/tail recall
 - Rating metrics: RMSE and MAE
 - CLI runner, reproducible config, saved reports, and unit tests
@@ -77,6 +78,7 @@ Each run writes:
 
 - `reports/model_metrics.csv` — model comparison table with rating, ranking, novelty, and long-tail metrics
 - `reports/sample_recommendations.csv` — example held-out items and recommended lists
+- `reports/model_comparisons.csv` — paired ranking deltas and improvement probabilities
 - `reports/mf_history.csv` — matrix-factorization training curve
 - `reports/bpr_history.csv` — pairwise BPR optimization curve
 - `reports/run_summary.json` — config, data shape, metrics, and artifact paths

@@ -11,6 +11,7 @@ from recsys_lab.metrics import (
     ndcg_at_k,
     novelty_at_k,
     normalized_exposure_entropy,
+    paired_ranking_bootstrap,
     personalization,
     precision_at_k,
     ranking_metrics,
@@ -89,6 +90,25 @@ def test_bootstrap_ranking_intervals_validate_settings() -> None:
         bootstrap_ranking_intervals({}, {}, n_resamples=0)
     with pytest.raises(ValueError, match="confidence"):
         bootstrap_ranking_intervals({}, {}, confidence=1.0)
+
+
+def test_paired_ranking_bootstrap_detects_better_candidate() -> None:
+    relevant = {user: {user + 10} for user in range(8)}
+    baseline = {user: [99, 98] for user in relevant}
+    candidate = {user: [user + 10, 99] for user in relevant}
+
+    comparison = paired_ranking_bootstrap(
+        baseline,
+        candidate,
+        relevant,
+        k=2,
+        n_resamples=200,
+        seed=7,
+    )
+
+    assert comparison["recall_delta"] == pytest.approx(1.0)
+    assert comparison["ndcg_delta"] == pytest.approx(1.0)
+    assert comparison["probability_recall_improves"] == pytest.approx(1.0)
 
 
 def test_coverage_and_personalization() -> None:

@@ -26,6 +26,7 @@ def test_pipeline_writes_reports_and_artifacts(tmp_path) -> None:
     history_path = tmp_path / "reports" / "mf_history.csv"
     bpr_history_path = tmp_path / "reports" / "bpr_history.csv"
     sample_path = tmp_path / "reports" / "sample_recommendations.csv"
+    comparisons_path = tmp_path / "reports" / "model_comparisons.csv"
     model_path = tmp_path / "artifacts" / "matrix_factorization.npz"
     bpr_model_path = tmp_path / "artifacts" / "bpr_matrix_factorization.npz"
     summary_path = tmp_path / "reports" / "run_summary.json"
@@ -35,6 +36,7 @@ def test_pipeline_writes_reports_and_artifacts(tmp_path) -> None:
     assert history_path.exists()
     assert bpr_history_path.exists()
     assert sample_path.exists()
+    assert comparisons_path.exists()
     assert model_path.exists()
     assert bpr_model_path.exists()
     assert summary_path.exists()
@@ -68,6 +70,13 @@ def test_pipeline_writes_reports_and_artifacts(tmp_path) -> None:
     with summary_path.open("r", encoding="utf-8") as handle:
         saved = json.load(handle)
     assert saved["best_model_by_recall"] in set(metrics["model"])
+    assert len(saved["paired_comparisons"]) == 3
+    comparisons = pd.read_csv(comparisons_path)
+    assert set(comparisons["candidate"]) == {
+        "item_knn",
+        "matrix_factorization",
+        "bpr_matrix_factorization",
+    }
     assert "Recommendation Experiment Report" in report_path.read_text(encoding="utf-8")
 
 

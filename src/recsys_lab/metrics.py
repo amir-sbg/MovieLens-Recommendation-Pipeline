@@ -186,6 +186,63 @@ def bootstrap_ranking_intervals(
     }
 
 
+def paired_ranking_bootstrap(
+    baseline_recommendations: dict[int, list[int]],
+    candidate_recommendations: dict[int, list[int]],
+    relevant_by_user: dict[int, set[int]],
+    k: int = 10,
+    n_resamples: int = 500,
+    confidence: float = 0.95,
+    seed: int = 42,
+) -> dict[str, float]:
+    if n_resamples < 1:
+        raise ValueError("n_resamples must be positive")
+    if not 0.0 < confidence < 1.0:
+        raise ValueError("confidence must be between 0 and 1")
+    users = [user for user, relevant in relevant_by_user.items() if relevant]
+    if not users:
+        return {
+            "recall_delta": 0.0,
+            "recall_delta_ci_low": 0.0,
+            "recall_delta_ci_high": 0.0,
+            "probability_recall_improves": 0.0,
+            "ndcg_delta": 0.0,
+            "ndcg_delta_ci_low": 0.0,
+            "ndcg_delta_ci_high": 0.0,
+            "probability_ndcg_improves": 0.0,
+        }
+
+    baseline_recall = np.asarray(
+        [recall_at_k(baseline_recommendations.get(user, []), relevant_by_user[user], k) for user in users]
+    )
+    candidate_recall = np.asarray(
+        [recall_at_k(candidate_recommendations.get(user, []), relevant_by_user[user], k) for user in users]
+    )
+    baseline_ndcg = np.asarray(
+        [ndcg_at_k(baseline_recommendations.get(user, []), relevant_by_user[user], k) for user in users]
+    )
+    candidate_ndcg = np.asarray(
+        [ndcg_at_k(candidate_recommendations.get(user, []), relevant_by_user[user], k) for user in users]
+    )
+    recall_delta = candidate_recall - baseline_recall
+    ndcg_delta = candidate_ndcg - baseline_ndcg
+    rng = np.random.default_rng(seed)
+    sample_indices = rng.integers(0, len(users), size=(n_resamples, len(users)))
+    recall_samples = recall_delta[sample_indices].mean(axis=1)
+    ndcg_samples = ndcg_delta[sample_indices].mean(axis=1)
+    tail = (1.0 - confidence) / 2.0
+    return {
+        "recall_delta": float(np.mean(recall_delta)),
+        "recall_delta_ci_low": float(np.quantile(recall_samples, tail)),
+        "recall_delta_ci_high": float(np.quantile(recall_samples, 1.0 - tail)),
+        "probability_recall_improves": float(np.mean(recall_samples > 0.0)),
+        "ndcg_delta": float(np.mean(ndcg_delta)),
+        "ndcg_delta_ci_low": float(np.quantile(ndcg_samples, tail)),
+        "ndcg_delta_ci_high": float(np.quantile(ndcg_samples, 1.0 - tail)),
+        "probability_ndcg_improves": float(np.mean(ndcg_samples > 0.0)),
+    }
+
+
 def catalog_coverage(recommendations_by_user: dict[int, list[int]], n_items: int) -> float:
     if n_items < 1:
         raise ValueError("n_items must be positive")

@@ -21,6 +21,7 @@ from recsys_lab.metrics import (
     long_tail_share_at_k,
     novelty_at_k,
     normalized_exposure_entropy,
+    paired_ranking_bootstrap,
     personalization,
     ranking_metrics,
     recall_by_popularity_segment,
@@ -225,6 +226,7 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
     metric_rows = []
     recommendation_rows = []
     fitted_models: dict[str, object] = {}
+    recommendations_by_model: dict[str, dict[int, list[int]]] = {}
     for model_name, model in models.items():
         started = time.perf_counter()
         if model_name == "matrix_factorization":
@@ -235,6 +237,7 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
         fitted_models[model_name] = model
 
         recommendations = _recommend_for_users(model, eval_users, seen, config.top_k)
+        recommendations_by_model[model_name] = recommendations
         rank = ranking_metrics(recommendations, heldout, k=config.top_k)
         intervals = bootstrap_ranking_intervals(
             recommendations,
@@ -287,6 +290,26 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
                 }
             )
 
+    baseline_recommendations = recommendations_by_model["popularity"]
+    comparison_rows = []
+    for model_name, recommendations in recommendations_by_model.items():
+        if model_name == "popularity":
+            continue
+        comparison_rows.append(
+            {
+                "baseline": "popularity",
+                "candidate": model_name,
+                **paired_ranking_bootstrap(
+                    baseline_recommendations,
+                    recommendations,
+                    heldout,
+                    k=config.top_k,
+                    n_resamples=config.bootstrap_resamples,
+                    seed=config.seed,
+                ),
+            }
+        )
+
     mf_model = fitted_models["matrix_factorization"]
     mf_model.save_npz(config.artifact_dir / "matrix_factorization.npz")
     bpr_model = fitted_models["bpr_matrix_factorization"]
@@ -297,6 +320,7 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
     pd.DataFrame(mf_model.history).to_csv(config.report_dir / "mf_history.csv", index=False)
     pd.DataFrame(bpr_model.history).to_csv(config.report_dir / "bpr_history.csv", index=False)
     pd.DataFrame(recommendation_rows).to_csv(config.report_dir / "sample_recommendations.csv", index=False)
+    pd.DataFrame(comparison_rows).to_csv(config.report_dir / "model_comparisons.csv", index=False)
 
     summary = {
         "config": config.to_json_dict(),
@@ -311,9 +335,11 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
         },
         "best_model_by_recall": str(metrics_frame.iloc[0]["model"]),
         "metrics": metrics_frame.astype(object).where(pd.notna(metrics_frame), None).to_dict(orient="records"),
+        "paired_comparisons": comparison_rows,
         "outputs": {
             "metrics": str(config.report_dir / "model_metrics.csv"),
             "recommendations": str(config.report_dir / "sample_recommendations.csv"),
+            "comparisons": str(config.report_dir / "model_comparisons.csv"),
             "history": str(config.report_dir / "mf_history.csv"),
             "bpr_history": str(config.report_dir / "bpr_history.csv"),
             "model": str(config.artifact_dir / "matrix_factorization.npz"),
