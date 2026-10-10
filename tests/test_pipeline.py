@@ -24,15 +24,19 @@ def test_pipeline_writes_reports_and_artifacts(tmp_path) -> None:
 
     metrics_path = tmp_path / "reports" / "model_metrics.csv"
     history_path = tmp_path / "reports" / "mf_history.csv"
+    bpr_history_path = tmp_path / "reports" / "bpr_history.csv"
     sample_path = tmp_path / "reports" / "sample_recommendations.csv"
     model_path = tmp_path / "artifacts" / "matrix_factorization.npz"
+    bpr_model_path = tmp_path / "artifacts" / "bpr_matrix_factorization.npz"
     summary_path = tmp_path / "reports" / "run_summary.json"
     report_path = tmp_path / "reports" / "experiment_report.md"
 
     assert metrics_path.exists()
     assert history_path.exists()
+    assert bpr_history_path.exists()
     assert sample_path.exists()
     assert model_path.exists()
+    assert bpr_model_path.exists()
     assert summary_path.exists()
     assert report_path.exists()
     assert summary["data"]["n_users"] == 18
@@ -40,7 +44,12 @@ def test_pipeline_writes_reports_and_artifacts(tmp_path) -> None:
     assert summary["data"]["ranking_users"] <= summary["data"]["test_interactions"]
 
     metrics = pd.read_csv(metrics_path)
-    assert set(metrics["model"]) == {"popularity", "item_knn", "matrix_factorization"}
+    assert set(metrics["model"]) == {
+        "popularity",
+        "item_knn",
+        "matrix_factorization",
+        "bpr_matrix_factorization",
+    }
     assert {
         "recall_at_k",
         "ranking_users",

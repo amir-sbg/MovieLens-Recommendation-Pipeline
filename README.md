@@ -26,6 +26,7 @@ ratings
 - Popularity recommender with Bayesian count-aware smoothing
 - Item-item collaborative filtering with cosine similarity and shrinkage
 - Matrix factorization trained with explicit-feedback SGD and validation early stopping
+- Bayesian Personalized Ranking (BPR) with sampled positive/negative item pairs
 - Ranking metrics: Recall@K, MAP@K, NDCG@K, hit rate, and bootstrap confidence intervals
 - Catalog diagnostics: coverage, personalization, novelty, exposure concentration, and head/tail recall
 - Rating metrics: RMSE and MAE
@@ -77,9 +78,11 @@ Each run writes:
 - `reports/model_metrics.csv` — model comparison table with rating, ranking, novelty, and long-tail metrics
 - `reports/sample_recommendations.csv` — example held-out items and recommended lists
 - `reports/mf_history.csv` — matrix-factorization training curve
+- `reports/bpr_history.csv` — pairwise BPR optimization curve
 - `reports/run_summary.json` — config, data shape, metrics, and artifact paths
 - `reports/experiment_report.md` — short readable experiment summary
 - `artifacts/matrix_factorization.npz` — learned matrix-factorization parameters
+- `artifacts/bpr_matrix_factorization.npz` — learned BPR user/item factors
 
 `data/`, `reports/`, and `artifacts/` are ignored by git because they are generated locally.
 

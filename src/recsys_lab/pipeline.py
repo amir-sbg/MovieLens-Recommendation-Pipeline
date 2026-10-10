@@ -26,7 +26,12 @@ from recsys_lab.metrics import (
     recall_by_popularity_segment,
     rating_metrics,
 )
-from recsys_lab.models import ItemKNNRecommender, MatrixFactorizationRecommender, PopularityRecommender
+from recsys_lab.models import (
+    BPRMatrixFactorizationRecommender,
+    ItemKNNRecommender,
+    MatrixFactorizationRecommender,
+    PopularityRecommender,
+)
 
 
 @dataclass(frozen=True)
@@ -48,6 +53,10 @@ class ExperimentConfig:
     mf_learning_rate: float = 0.03
     mf_regularization: float = 0.03
     mf_patience: int | None = 5
+    bpr_factors: int = 24
+    bpr_epochs: int = 15
+    bpr_learning_rate: float = 0.03
+    bpr_regularization: float = 0.01
     bootstrap_resamples: int = 300
 
     @classmethod
@@ -88,8 +97,8 @@ def _recommend_for_users(
 
 def _model_rows(
     model_name: str,
-    validation_rating: dict[str, float],
-    test_rating: dict[str, float],
+    validation_rating: dict[str, float] | None,
+    test_rating: dict[str, float] | None,
     ranking: dict[str, float],
     ranking_intervals: dict[str, float],
     segment_recall: dict[str, float],
@@ -100,13 +109,13 @@ def _model_rows(
     novelty: float,
     long_tail_share: float,
     fit_seconds: float,
-) -> dict[str, float | str]:
+) -> dict[str, float | str | None]:
     return {
         "model": model_name,
-        "validation_rmse": validation_rating["rmse"],
-        "validation_mae": validation_rating["mae"],
-        "test_rmse": test_rating["rmse"],
-        "test_mae": test_rating["mae"],
+        "validation_rmse": validation_rating["rmse"] if validation_rating else None,
+        "validation_mae": validation_rating["mae"] if validation_rating else None,
+        "test_rmse": test_rating["rmse"] if test_rating else None,
+        "test_mae": test_rating["mae"] if test_rating else None,
         "ranking_users": ranking["users"],
         "recall_at_k": ranking["recall_at_k"],
         "map_at_k": ranking["map_at_k"],
@@ -150,10 +159,12 @@ def _write_markdown_report(summary: dict[str, Any], path: Path) -> None:
         "| --- | ---: | ---: | ---: | ---: | ---: |",
     ]
     for row in metrics:
+        test_rmse = "n/a" if row["test_rmse"] is None else f"{row['test_rmse']:.4f}"
         lines.append(
-            "| {model} | {test_rmse:.4f} | {recall_at_k:.4f} "
-            "[{recall_at_k_ci_low:.4f}, {recall_at_k_ci_high:.4f}] | {ndcg_at_k:.4f} | "
-            "{tail_recall_at_k:.4f} | {exposure_gini:.4f} |".format(**row)
+            f"| {row['model']} | {test_rmse} | {row['recall_at_k']:.4f} "
+            f"[{row['recall_at_k_ci_low']:.4f}, {row['recall_at_k_ci_high']:.4f}] | "
+            f"{row['ndcg_at_k']:.4f} | {row['tail_recall_at_k']:.4f} | "
+            f"{row['exposure_gini']:.4f} |"
         )
     lines.extend(
         [
@@ -201,6 +212,14 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
             patience=config.mf_patience,
             seed=config.seed,
         ),
+        "bpr_matrix_factorization": BPRMatrixFactorizationRecommender(
+            factors=config.bpr_factors,
+            epochs=config.bpr_epochs,
+            learning_rate=config.bpr_learning_rate,
+            regularization=config.bpr_regularization,
+            positive_threshold=config.relevance_threshold,
+            seed=config.seed,
+        ),
     }
 
     metric_rows = []
@@ -232,8 +251,8 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
         )
         row = _model_rows(
             model_name=model_name,
-            validation_rating=_predict_frame(model, data.validation),
-            test_rating=_predict_frame(model, data.test),
+            validation_rating=None if model_name == "bpr_matrix_factorization" else _predict_frame(model, data.validation),
+            test_rating=None if model_name == "bpr_matrix_factorization" else _predict_frame(model, data.test),
             ranking=rank,
             ranking_intervals=intervals,
             segment_recall=segment_recall,
@@ -270,10 +289,13 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
 
     mf_model = fitted_models["matrix_factorization"]
     mf_model.save_npz(config.artifact_dir / "matrix_factorization.npz")
+    bpr_model = fitted_models["bpr_matrix_factorization"]
+    bpr_model.save_npz(config.artifact_dir / "bpr_matrix_factorization.npz")
 
     metrics_frame = pd.DataFrame(metric_rows).sort_values("recall_at_k", ascending=False)
     metrics_frame.to_csv(config.report_dir / "model_metrics.csv", index=False)
     pd.DataFrame(mf_model.history).to_csv(config.report_dir / "mf_history.csv", index=False)
+    pd.DataFrame(bpr_model.history).to_csv(config.report_dir / "bpr_history.csv", index=False)
     pd.DataFrame(recommendation_rows).to_csv(config.report_dir / "sample_recommendations.csv", index=False)
 
     summary = {
@@ -288,12 +310,14 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
             "relevance_threshold": config.relevance_threshold,
         },
         "best_model_by_recall": str(metrics_frame.iloc[0]["model"]),
-        "metrics": metrics_frame.to_dict(orient="records"),
+        "metrics": metrics_frame.astype(object).where(pd.notna(metrics_frame), None).to_dict(orient="records"),
         "outputs": {
             "metrics": str(config.report_dir / "model_metrics.csv"),
             "recommendations": str(config.report_dir / "sample_recommendations.csv"),
             "history": str(config.report_dir / "mf_history.csv"),
+            "bpr_history": str(config.report_dir / "bpr_history.csv"),
             "model": str(config.artifact_dir / "matrix_factorization.npz"),
+            "bpr_model": str(config.artifact_dir / "bpr_matrix_factorization.npz"),
             "markdown_report": str(config.report_dir / "experiment_report.md"),
         },
     }

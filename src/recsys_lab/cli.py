@@ -26,6 +26,10 @@ def _run_from_args(args: argparse.Namespace) -> dict[str, object]:
         mf_learning_rate=args.mf_learning_rate,
         mf_regularization=args.mf_regularization,
         mf_patience=args.mf_patience,
+        bpr_factors=args.bpr_factors,
+        bpr_epochs=args.bpr_epochs,
+        bpr_learning_rate=args.bpr_learning_rate,
+        bpr_regularization=args.bpr_regularization,
         bootstrap_resamples=args.bootstrap_resamples,
     )
     return run_experiment(config)
@@ -53,6 +57,10 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--mf-learning-rate", type=float, default=0.03)
     run_parser.add_argument("--mf-regularization", type=float, default=0.03)
     run_parser.add_argument("--mf-patience", type=int, default=5)
+    run_parser.add_argument("--bpr-factors", type=int, default=24)
+    run_parser.add_argument("--bpr-epochs", type=int, default=15)
+    run_parser.add_argument("--bpr-learning-rate", type=float, default=0.03)
+    run_parser.add_argument("--bpr-regularization", type=float, default=0.01)
     run_parser.add_argument("--bootstrap-resamples", type=int, default=300)
     run_parser.set_defaults(func=_run_from_args)
 

@@ -6,6 +6,7 @@ import pytest
 
 from recsys_lab.data import prepare_recommendation_data, user_seen_items
 from recsys_lab.models import (
+    BPRMatrixFactorizationRecommender,
     ItemKNNRecommender,
     MatrixFactorizationRecommender,
     PopularityRecommender,
@@ -159,3 +160,23 @@ def test_matrix_factorization_artifact_round_trip(tmp_path) -> None:
             data.test["item_idx"].to_numpy(),
         ),
     )
+
+
+def test_bpr_learns_pairwise_rankings_and_excludes_seen_items(tmp_path) -> None:
+    data = prepare_recommendation_data(users=12, items=30, density=0.3, seed=31)
+    seen = user_seen_items(data.train)
+    model = BPRMatrixFactorizationRecommender(
+        factors=6,
+        epochs=3,
+        samples_per_epoch=80,
+        seed=31,
+    ).fit(data.train, n_users=data.n_users, n_items=data.n_items)
+
+    recommendations = model.recommend(0, seen_items=seen[0], k=5)
+    model.save_npz(tmp_path / "bpr.npz")
+
+    assert len(model.history) == 3
+    assert all(np.isfinite(row["pairwise_loss"]) for row in model.history)
+    assert len(recommendations) == 5
+    assert set(recommendations).isdisjoint(seen[0])
+    assert (tmp_path / "bpr.npz").exists()

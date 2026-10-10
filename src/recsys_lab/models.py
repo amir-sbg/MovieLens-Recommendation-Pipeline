@@ -379,3 +379,132 @@ class MatrixFactorizationRecommender:
         self.item_factors = np.asarray(state["item_factors"], dtype=float).copy()
         self.user_bias = np.asarray(state["user_bias"], dtype=float).copy()
         self.item_bias = np.asarray(state["item_bias"], dtype=float).copy()
+
+
+@dataclass
+class BPRMatrixFactorizationRecommender:
+    factors: int = 24
+    epochs: int = 15
+    learning_rate: float = 0.03
+    regularization: float = 0.01
+    positive_threshold: float = 4.0
+    samples_per_epoch: int | None = None
+    seed: int = 42
+    user_factors: np.ndarray | None = None
+    item_factors: np.ndarray | None = None
+    item_bias: np.ndarray | None = None
+    history: list[dict[str, float]] = field(default_factory=list)
+
+    def fit(
+        self,
+        interactions: pd.DataFrame,
+        n_users: int | None = None,
+        n_items: int | None = None,
+    ) -> "BPRMatrixFactorizationRecommender":
+        self._validate_training_settings()
+        users, items = _infer_shape(interactions, n_users, n_items)
+        positives = interactions[interactions["rating"] >= self.positive_threshold]
+        positive_by_user = {
+            int(user): np.asarray(group["item_idx"].unique(), dtype=int)
+            for user, group in positives.groupby("user_idx")
+        }
+        observed_by_user = {
+            int(user): set(int(item) for item in group["item_idx"])
+            for user, group in interactions.groupby("user_idx")
+        }
+        eligible_users = np.asarray(
+            [
+                user
+                for user, user_positives in positive_by_user.items()
+                if len(user_positives) > 0 and len(observed_by_user[user]) < items
+            ],
+            dtype=int,
+        )
+        if eligible_users.size == 0:
+            raise ValueError("BPR needs at least one positive interaction and one unobserved item")
+
+        rng = np.random.default_rng(self.seed)
+        self.user_factors = rng.normal(0.0, 0.05, size=(users, self.factors))
+        self.item_factors = rng.normal(0.0, 0.05, size=(items, self.factors))
+        self.item_bias = np.zeros(items, dtype=float)
+        self.history = []
+        draws = self.samples_per_epoch or int(sum(len(values) for values in positive_by_user.values()))
+
+        for epoch in range(1, self.epochs + 1):
+            losses = []
+            for _ in range(draws):
+                user = int(rng.choice(eligible_users))
+                positive = int(rng.choice(positive_by_user[user]))
+                negative = int(rng.integers(items))
+                while negative in observed_by_user[user]:
+                    negative = int(rng.integers(items))
+
+                user_vector = self.user_factors[user].copy()
+                positive_vector = self.item_factors[positive].copy()
+                negative_vector = self.item_factors[negative].copy()
+                score_difference = float(
+                    self.item_bias[positive]
+                    - self.item_bias[negative]
+                    + user_vector @ (positive_vector - negative_vector)
+                )
+                gradient = 1.0 / (1.0 + np.exp(np.clip(score_difference, -35.0, 35.0)))
+
+                self.user_factors[user] += self.learning_rate * (
+                    gradient * (positive_vector - negative_vector)
+                    - self.regularization * user_vector
+                )
+                self.item_factors[positive] += self.learning_rate * (
+                    gradient * user_vector - self.regularization * positive_vector
+                )
+                self.item_factors[negative] += self.learning_rate * (
+                    -gradient * user_vector - self.regularization * negative_vector
+                )
+                self.item_bias[positive] += self.learning_rate * (
+                    gradient - self.regularization * self.item_bias[positive]
+                )
+                self.item_bias[negative] += self.learning_rate * (
+                    -gradient - self.regularization * self.item_bias[negative]
+                )
+                losses.append(float(np.logaddexp(0.0, -score_difference)))
+
+            self.history.append(
+                {
+                    "epoch": float(epoch),
+                    "pairwise_loss": float(np.mean(losses)),
+                }
+            )
+        return self
+
+    def scores_for_user(self, user_idx: int) -> np.ndarray:
+        if self.user_factors is None or self.item_factors is None or self.item_bias is None:
+            raise RuntimeError("fit the BPR model before scoring")
+        if not 0 <= user_idx < len(self.user_factors):
+            return self.item_bias.copy()
+        return self.item_bias + self.item_factors @ self.user_factors[user_idx]
+
+    def recommend(self, user_idx: int, seen_items: set[int] | None = None, k: int = 10) -> list[int]:
+        return _best_items_from_scores(self.scores_for_user(user_idx), seen_items or set(), k)
+
+    def save_npz(self, path: Path) -> None:
+        if self.user_factors is None or self.item_factors is None or self.item_bias is None:
+            raise RuntimeError("fit the BPR model before saving")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        np.savez(
+            path,
+            user_factors=self.user_factors,
+            item_factors=self.item_factors,
+            item_bias=self.item_bias,
+            positive_threshold=np.array([self.positive_threshold]),
+        )
+
+    def _validate_training_settings(self) -> None:
+        if self.factors < 1 or self.epochs < 1:
+            raise ValueError("factors and epochs must be positive")
+        if self.learning_rate <= 0:
+            raise ValueError("learning_rate must be positive")
+        if self.regularization < 0:
+            raise ValueError("regularization must not be negative")
+        if not 1.0 <= self.positive_threshold <= 5.0:
+            raise ValueError("positive_threshold must be in the 1-5 rating range")
+        if self.samples_per_epoch is not None and self.samples_per_epoch < 1:
+            raise ValueError("samples_per_epoch must be positive")
