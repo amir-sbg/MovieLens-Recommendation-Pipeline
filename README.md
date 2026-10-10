@@ -22,6 +22,7 @@ ratings
 - Synthetic rating generator for fast local experiments
 - Optional MovieLens 100K loader
 - Per-user temporal split so validation/test simulate future recommendations
+- Configurable relevance threshold so low held-out ratings are not counted as successful recommendations
 - Popularity recommender with Bayesian count-aware smoothing
 - Item-item collaborative filtering with cosine similarity and shrinkage
 - Matrix factorization trained with explicit-feedback SGD and validation early stopping
@@ -51,6 +52,7 @@ python -m recsys_lab.cli run \
   --mf-factors 24 \
   --mf-epochs 15 \
   --mf-patience 5 \
+  --relevance-threshold 4.0 \
   --top-k 10
 ```
 

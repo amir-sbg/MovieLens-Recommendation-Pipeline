@@ -19,6 +19,7 @@ def _run_from_args(args: argparse.Namespace) -> dict[str, object]:
         latent_dim=args.latent_dim,
         seed=args.seed,
         top_k=args.top_k,
+        relevance_threshold=args.relevance_threshold,
         knn_neighbors=args.knn_neighbors,
         mf_factors=args.mf_factors,
         mf_epochs=args.mf_epochs,
@@ -45,6 +46,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--latent-dim", type=int, default=12)
     run_parser.add_argument("--seed", type=int, default=42)
     run_parser.add_argument("--top-k", type=int, default=10)
+    run_parser.add_argument("--relevance-threshold", type=float, default=4.0)
     run_parser.add_argument("--knn-neighbors", type=int, default=30)
     run_parser.add_argument("--mf-factors", type=int, default=24)
     run_parser.add_argument("--mf-epochs", type=int, default=15)

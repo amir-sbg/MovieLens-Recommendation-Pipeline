@@ -11,6 +11,7 @@ import pandas as pd
 from recsys_lab.data import (
     RecommendationData,
     prepare_recommendation_data,
+    relevant_items_by_user,
     user_seen_items,
 )
 from recsys_lab.metrics import (
@@ -40,6 +41,7 @@ class ExperimentConfig:
     latent_dim: int = 12
     seed: int = 42
     top_k: int = 10
+    relevance_threshold: float = 4.0
     knn_neighbors: int = 30
     mf_factors: int = 24
     mf_epochs: int = 15
@@ -105,6 +107,7 @@ def _model_rows(
         "validation_mae": validation_rating["mae"],
         "test_rmse": test_rating["rmse"],
         "test_mae": test_rating["mae"],
+        "ranking_users": ranking["users"],
         "recall_at_k": ranking["recall_at_k"],
         "map_at_k": ranking["map_at_k"],
         "mrr_at_k": ranking["mrr_at_k"],
@@ -164,6 +167,8 @@ def _write_markdown_report(summary: dict[str, Any], path: Path) -> None:
 
 
 def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
+    if not 1.0 <= config.relevance_threshold <= 5.0:
+        raise ValueError("relevance_threshold must be in the 1-5 rating range")
     config.artifact_dir.mkdir(parents=True, exist_ok=True)
     config.report_dir.mkdir(parents=True, exist_ok=True)
 
@@ -177,7 +182,7 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
         seed=config.seed,
     )
     seen = user_seen_items(data.train)
-    heldout = user_seen_items(data.test)
+    heldout = relevant_items_by_user(data.test, min_rating=config.relevance_threshold)
     eval_users = sorted(heldout)
     item_popularity = {
         int(item): int(count)
@@ -279,6 +284,8 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
             "train_interactions": len(data.train),
             "validation_interactions": len(data.validation),
             "test_interactions": len(data.test),
+            "ranking_users": len(eval_users),
+            "relevance_threshold": config.relevance_threshold,
         },
         "best_model_by_recall": str(metrics_frame.iloc[0]["model"]),
         "metrics": metrics_frame.to_dict(orient="records"),

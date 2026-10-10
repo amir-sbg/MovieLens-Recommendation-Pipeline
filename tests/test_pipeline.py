@@ -36,11 +36,14 @@ def test_pipeline_writes_reports_and_artifacts(tmp_path) -> None:
     assert summary_path.exists()
     assert report_path.exists()
     assert summary["data"]["n_users"] == 18
+    assert summary["data"]["relevance_threshold"] == 4.0
+    assert summary["data"]["ranking_users"] <= summary["data"]["test_interactions"]
 
     metrics = pd.read_csv(metrics_path)
     assert set(metrics["model"]) == {"popularity", "item_knn", "matrix_factorization"}
     assert {
         "recall_at_k",
+        "ranking_users",
         "catalog_coverage",
         "novelty_at_k",
         "long_tail_share_at_k",
@@ -57,3 +60,21 @@ def test_pipeline_writes_reports_and_artifacts(tmp_path) -> None:
         saved = json.load(handle)
     assert saved["best_model_by_recall"] in set(metrics["model"])
     assert "Recommendation Experiment Report" in report_path.read_text(encoding="utf-8")
+
+
+def test_pipeline_validates_relevance_threshold(tmp_path) -> None:
+    config = ExperimentConfig(
+        users=8,
+        items=20,
+        density=0.3,
+        relevance_threshold=5.5,
+        artifact_dir=tmp_path / "artifacts",
+        report_dir=tmp_path / "reports",
+    )
+
+    try:
+        run_experiment(config)
+    except ValueError as error:
+        assert "relevance_threshold" in str(error)
+    else:
+        raise AssertionError("invalid relevance threshold was accepted")
