@@ -24,6 +24,7 @@ from recsys_lab.metrics import (
     paired_ranking_bootstrap,
     personalization,
     ranking_metrics,
+    ranking_metrics_by_activity,
     recall_by_popularity_segment,
     rating_metrics,
 )
@@ -201,6 +202,10 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
         for item, count in data.train.groupby("item_idx")["rating"].count().items()
     }
     total_interactions = int(len(data.train))
+    user_interaction_counts = {
+        int(user): int(count)
+        for user, count in data.train.groupby("user_idx")["item_idx"].count().items()
+    }
 
     models = {
         "popularity": PopularityRecommender(),
@@ -225,6 +230,7 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
 
     metric_rows = []
     recommendation_rows = []
+    activity_rows = []
     fitted_models: dict[str, object] = {}
     recommendations_by_model: dict[str, dict[int, list[int]]] = {}
     for model_name, model in models.items():
@@ -239,6 +245,18 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
         recommendations = _recommend_for_users(model, eval_users, seen, config.top_k)
         recommendations_by_model[model_name] = recommendations
         rank = ranking_metrics(recommendations, heldout, k=config.top_k)
+        activity_rows.extend(
+            {
+                "model": model_name,
+                **row,
+            }
+            for row in ranking_metrics_by_activity(
+                recommendations,
+                heldout,
+                user_interaction_counts,
+                k=config.top_k,
+            )
+        )
         intervals = bootstrap_ranking_intervals(
             recommendations,
             heldout,
@@ -321,6 +339,10 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
     pd.DataFrame(bpr_model.history).to_csv(config.report_dir / "bpr_history.csv", index=False)
     pd.DataFrame(recommendation_rows).to_csv(config.report_dir / "sample_recommendations.csv", index=False)
     pd.DataFrame(comparison_rows).to_csv(config.report_dir / "model_comparisons.csv", index=False)
+    pd.DataFrame(activity_rows).to_csv(
+        config.report_dir / "activity_cohort_metrics.csv",
+        index=False,
+    )
 
     summary = {
         "config": config.to_json_dict(),
@@ -336,10 +358,12 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
         "best_model_by_recall": str(metrics_frame.iloc[0]["model"]),
         "metrics": metrics_frame.astype(object).where(pd.notna(metrics_frame), None).to_dict(orient="records"),
         "paired_comparisons": comparison_rows,
+        "activity_cohort_metrics": activity_rows,
         "outputs": {
             "metrics": str(config.report_dir / "model_metrics.csv"),
             "recommendations": str(config.report_dir / "sample_recommendations.csv"),
             "comparisons": str(config.report_dir / "model_comparisons.csv"),
+            "activity_cohorts": str(config.report_dir / "activity_cohort_metrics.csv"),
             "history": str(config.report_dir / "mf_history.csv"),
             "bpr_history": str(config.report_dir / "bpr_history.csv"),
             "model": str(config.artifact_dir / "matrix_factorization.npz"),

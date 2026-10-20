@@ -15,6 +15,7 @@ from recsys_lab.metrics import (
     personalization,
     precision_at_k,
     ranking_metrics,
+    ranking_metrics_by_activity,
     recall_by_popularity_segment,
     reciprocal_rank_at_k,
     recall_at_k,
@@ -71,6 +72,33 @@ def test_ranking_metrics_average_across_users() -> None:
     assert metrics["hit_rate"] == pytest.approx(0.5)
     assert metrics["recall_at_k"] == pytest.approx(0.5)
     assert metrics["mrr_at_k"] == pytest.approx(0.25)
+
+
+def test_ranking_metrics_by_activity_exposes_history_length_gaps() -> None:
+    relevant = {user: {user + 10} for user in range(6)}
+    recs = {
+        0: [10],
+        1: [11],
+        2: [99],
+        3: [99],
+        4: [14],
+        5: [99],
+    }
+    interaction_counts = {0: 1, 1: 2, 2: 4, 3: 5, 4: 9, 5: 12}
+
+    rows = ranking_metrics_by_activity(recs, relevant, interaction_counts, k=1)
+    by_cohort = {row["cohort"]: row for row in rows}
+
+    assert set(by_cohort) == {"short_history", "medium_history", "long_history"}
+    assert by_cohort["short_history"]["recall_at_k"] == pytest.approx(1.0)
+    assert by_cohort["medium_history"]["recall_at_k"] == pytest.approx(0.0)
+    assert by_cohort["long_history"]["recall_at_k"] == pytest.approx(0.5)
+    assert by_cohort["long_history"]["users"] == 2
+
+
+def test_ranking_metrics_by_activity_requires_training_counts() -> None:
+    with pytest.raises(ValueError, match="missing interaction counts"):
+        ranking_metrics_by_activity({0: [1]}, {0: {1}}, {}, k=1)
 
 
 def test_bootstrap_ranking_intervals_are_reproducible() -> None:

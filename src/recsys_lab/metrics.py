@@ -146,6 +146,47 @@ def ranking_metrics(
     }
 
 
+def ranking_metrics_by_activity(
+    recommendations_by_user: dict[int, list[int]],
+    relevant_by_user: dict[int, set[int]],
+    interaction_counts: dict[int, int],
+    k: int = 10,
+) -> list[dict[str, float | str]]:
+    """Break ranking quality out by observed user-history length."""
+
+    users = [user for user, relevant in relevant_by_user.items() if relevant]
+    if not users:
+        return []
+    missing = [user for user in users if user not in interaction_counts]
+    if missing:
+        raise ValueError(f"missing interaction counts for users: {missing[:5]}")
+    counts = np.asarray([interaction_counts[user] for user in users], dtype=float)
+    if np.any(counts < 0):
+        raise ValueError("interaction counts must not be negative")
+    ordered_users = sorted(users, key=lambda user: (interaction_counts[user], user))
+    partitions = np.array_split(np.asarray(ordered_users, dtype=int), 3)
+    cohorts = zip(
+        ("short_history", "medium_history", "long_history"),
+        ([int(user) for user in partition] for partition in partitions),
+    )
+    rows = []
+    for cohort, cohort_users in cohorts:
+        if not cohort_users:
+            continue
+        subset_relevant = {user: relevant_by_user[user] for user in cohort_users}
+        metrics = ranking_metrics(recommendations_by_user, subset_relevant, k=k)
+        cohort_counts = [interaction_counts[user] for user in cohort_users]
+        rows.append(
+            {
+                "cohort": cohort,
+                "min_interactions": float(min(cohort_counts)),
+                "max_interactions": float(max(cohort_counts)),
+                **metrics,
+            }
+        )
+    return rows
+
+
 def bootstrap_ranking_intervals(
     recommendations_by_user: dict[int, list[int]],
     relevant_by_user: dict[int, set[int]],
