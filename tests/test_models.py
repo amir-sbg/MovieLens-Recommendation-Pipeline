@@ -177,6 +177,30 @@ def test_bpr_learns_pairwise_rankings_and_excludes_seen_items(tmp_path) -> None:
 
     assert len(model.history) == 3
     assert all(np.isfinite(row["pairwise_loss"]) for row in model.history)
+    assert all(np.isfinite(row["sampled_negative_score"]) for row in model.history)
     assert len(recommendations) == 5
     assert set(recommendations).isdisjoint(seen[0])
     assert (tmp_path / "bpr.npz").exists()
+
+
+def test_bpr_hard_negative_sampling_selects_the_highest_scored_candidate() -> None:
+    model = BPRMatrixFactorizationRecommender(
+        factors=1,
+        hard_negative_candidates=3,
+    )
+    model.user_factors = np.array([[1.0]])
+    model.item_factors = np.array([[0.1], [0.8], [0.4]])
+    model.item_bias = np.zeros(3)
+    rng = np.random.default_rng(5)
+
+    item, score = model._sample_negative(0, set(), 3, rng)
+
+    assert score == pytest.approx(model.scores_for_user(0)[item])
+    assert score >= 0.4
+
+
+def test_bpr_rejects_invalid_hard_negative_pool() -> None:
+    data = prepare_recommendation_data(users=8, items=20, density=0.3, seed=18)
+
+    with pytest.raises(ValueError, match="hard_negative_candidates"):
+        BPRMatrixFactorizationRecommender(hard_negative_candidates=0).fit(data.train)

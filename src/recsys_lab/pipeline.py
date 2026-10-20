@@ -59,6 +59,7 @@ class ExperimentConfig:
     bpr_epochs: int = 15
     bpr_learning_rate: float = 0.03
     bpr_regularization: float = 0.01
+    bpr_hard_negative_candidates: int = 5
     bootstrap_resamples: int = 300
 
     @classmethod
@@ -223,6 +224,7 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
             epochs=config.bpr_epochs,
             learning_rate=config.bpr_learning_rate,
             regularization=config.bpr_regularization,
+            hard_negative_candidates=config.bpr_hard_negative_candidates,
             positive_threshold=config.relevance_threshold,
             seed=config.seed,
         ),

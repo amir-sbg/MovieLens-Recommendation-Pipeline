@@ -6,6 +6,7 @@
   "latent_dim": 12,
   "mf_epochs": 12,
   "mf_factors": 16,
+  "bpr_hard_negative_candidates": 5,
   "top_k": 10,
   "seed": 42
 }

@@ -389,6 +389,7 @@ class BPRMatrixFactorizationRecommender:
     regularization: float = 0.01
     positive_threshold: float = 4.0
     samples_per_epoch: int | None = None
+    hard_negative_candidates: int = 1
     seed: int = 42
     user_factors: np.ndarray | None = None
     item_factors: np.ndarray | None = None
@@ -432,12 +433,17 @@ class BPRMatrixFactorizationRecommender:
 
         for epoch in range(1, self.epochs + 1):
             losses = []
+            negative_scores = []
             for _ in range(draws):
                 user = int(rng.choice(eligible_users))
                 positive = int(rng.choice(positive_by_user[user]))
-                negative = int(rng.integers(items))
-                while negative in observed_by_user[user]:
-                    negative = int(rng.integers(items))
+                negative, negative_score = self._sample_negative(
+                    user,
+                    observed_by_user[user],
+                    items,
+                    rng,
+                )
+                negative_scores.append(negative_score)
 
                 user_vector = self.user_factors[user].copy()
                 positive_vector = self.item_factors[positive].copy()
@@ -471,9 +477,32 @@ class BPRMatrixFactorizationRecommender:
                 {
                     "epoch": float(epoch),
                     "pairwise_loss": float(np.mean(losses)),
+                    "sampled_negative_score": float(np.mean(negative_scores)),
                 }
             )
         return self
+
+    def _sample_negative(
+        self,
+        user: int,
+        observed: set[int],
+        n_items: int,
+        rng: np.random.Generator,
+    ) -> tuple[int, float]:
+        if self.user_factors is None or self.item_factors is None or self.item_bias is None:
+            raise RuntimeError("initialize BPR factors before sampling negatives")
+        candidates = []
+        while len(candidates) < self.hard_negative_candidates:
+            item = int(rng.integers(n_items))
+            if item not in observed:
+                candidates.append(item)
+        candidate_array = np.asarray(candidates, dtype=int)
+        scores = (
+            self.item_bias[candidate_array]
+            + self.item_factors[candidate_array] @ self.user_factors[user]
+        )
+        hardest = int(np.argmax(scores))
+        return int(candidate_array[hardest]), float(scores[hardest])
 
     def scores_for_user(self, user_idx: int) -> np.ndarray:
         if self.user_factors is None or self.item_factors is None or self.item_bias is None:
@@ -508,3 +537,5 @@ class BPRMatrixFactorizationRecommender:
             raise ValueError("positive_threshold must be in the 1-5 rating range")
         if self.samples_per_epoch is not None and self.samples_per_epoch < 1:
             raise ValueError("samples_per_epoch must be positive")
+        if self.hard_negative_candidates < 1:
+            raise ValueError("hard_negative_candidates must be positive")

@@ -26,7 +26,7 @@ ratings
 - Popularity recommender with Bayesian count-aware smoothing
 - Item-item collaborative filtering with cosine similarity and shrinkage
 - Matrix factorization trained with explicit-feedback SGD and validation early stopping
-- Bayesian Personalized Ranking (BPR) with sampled positive/negative item pairs
+- Bayesian Personalized Ranking (BPR) with score-aware hard-negative sampling
 - Ranking metrics: Recall@K, MAP@K, NDCG@K, hit rate, and bootstrap confidence intervals
 - Paired bootstrap deltas against the popularity baseline for Recall@K and NDCG@K
 - Ranking breakdowns for short-, medium-, and long-history users

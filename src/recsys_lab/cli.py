@@ -30,6 +30,7 @@ def _run_from_args(args: argparse.Namespace) -> dict[str, object]:
         bpr_epochs=args.bpr_epochs,
         bpr_learning_rate=args.bpr_learning_rate,
         bpr_regularization=args.bpr_regularization,
+        bpr_hard_negative_candidates=args.bpr_hard_negative_candidates,
         bootstrap_resamples=args.bootstrap_resamples,
     )
     return run_experiment(config)
@@ -61,6 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--bpr-epochs", type=int, default=15)
     run_parser.add_argument("--bpr-learning-rate", type=float, default=0.03)
     run_parser.add_argument("--bpr-regularization", type=float, default=0.01)
+    run_parser.add_argument("--bpr-hard-negative-candidates", type=int, default=5)
     run_parser.add_argument("--bootstrap-resamples", type=int, default=300)
     run_parser.set_defaults(func=_run_from_args)
 
