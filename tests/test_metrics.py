@@ -20,6 +20,7 @@ from recsys_lab.metrics import (
     reciprocal_rank_at_k,
     recall_at_k,
     rating_metrics,
+    rating_calibration,
     rmse,
 )
 
@@ -29,6 +30,7 @@ def test_rating_metrics_are_computed() -> None:
 
     assert metrics["mae"] == pytest.approx(2 / 3)
     assert metrics["rmse"] == pytest.approx(rmse([5, 4, 1], [4, 4, 2]))
+    assert metrics["mean_bias"] == pytest.approx(0.0)
 
 
 def test_rating_metrics_accept_one_pass_iterables() -> None:
@@ -40,6 +42,18 @@ def test_rating_metrics_accept_one_pass_iterables() -> None:
 def test_rating_metrics_reject_shape_mismatch() -> None:
     with pytest.raises(ValueError, match="same shape"):
         rmse([1, 2], [1])
+
+
+def test_rating_calibration_exposes_directional_bin_bias() -> None:
+    report = rating_calibration(
+        [1.0, 2.0, 4.0, 5.0],
+        [1.5, 1.5, 4.5, 4.5],
+        bins=2,
+    )
+
+    assert report["calibration_mae"] == pytest.approx(0.0)
+    assert [row["count"] for row in report["bins"]] == [2, 2]
+    assert report["bins"][0]["mean_rating"] == pytest.approx(1.5)
 
 
 def test_top_k_ranking_metrics() -> None:

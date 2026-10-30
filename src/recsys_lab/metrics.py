@@ -33,7 +33,55 @@ def rating_metrics(y_true: Iterable[float], y_pred: Iterable[float]) -> dict[str
     return {
         "rmse": rmse(true, pred),
         "mae": mae(true, pred),
+        "mean_bias": float(np.mean(pred - true)),
     }
+
+
+def rating_calibration(
+    y_true: Iterable[float],
+    y_pred: Iterable[float],
+    bins: int = 5,
+    rating_range: tuple[float, float] = (1.0, 5.0),
+) -> dict[str, float | list[dict[str, float | int]]]:
+    true = np.asarray(list(y_true), dtype=float)
+    pred = np.asarray(list(y_pred), dtype=float)
+    if true.shape != pred.shape:
+        raise ValueError("y_true and y_pred must have the same shape")
+    if true.size == 0:
+        raise ValueError("cannot calibrate an empty input")
+    if bins < 1:
+        raise ValueError("bins must be positive")
+    low, high = rating_range
+    if low >= high:
+        raise ValueError("rating_range must be increasing")
+
+    edges = np.linspace(low, high, bins + 1)
+    rows = []
+    weighted_gap = 0.0
+    for index in range(bins):
+        selected = (pred >= edges[index]) & (
+            (pred < edges[index + 1]) if index < bins - 1 else (pred <= edges[index + 1])
+        )
+        count = int(selected.sum())
+        if count:
+            mean_prediction = float(pred[selected].mean())
+            mean_rating = float(true[selected].mean())
+            gap = mean_prediction - mean_rating
+            weighted_gap += count / true.size * abs(gap)
+        else:
+            mean_prediction = mean_rating = gap = 0.0
+        rows.append(
+            {
+                "bin": index,
+                "count": count,
+                "lower": float(edges[index]),
+                "upper": float(edges[index + 1]),
+                "mean_prediction": mean_prediction,
+                "mean_rating": mean_rating,
+                "bias": gap,
+            }
+        )
+    return {"calibration_mae": float(weighted_gap), "bins": rows}
 
 
 def _top_k(items: list[int], k: int) -> list[int]:
