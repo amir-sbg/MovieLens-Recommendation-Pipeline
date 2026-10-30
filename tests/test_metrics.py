@@ -17,6 +17,7 @@ from recsys_lab.metrics import (
     ranking_metrics,
     ranking_metrics_by_activity,
     recall_by_popularity_segment,
+    recommendation_stability,
     reciprocal_rank_at_k,
     recall_at_k,
     rating_metrics,
@@ -158,6 +159,18 @@ def test_coverage_and_personalization() -> None:
 
     assert catalog_coverage(recs, n_items=10) == pytest.approx(0.5)
     assert personalization(recs) > 0.0
+
+
+def test_recommendation_stability_tracks_candidate_perturbations() -> None:
+    report = recommendation_stability(
+        {0: [1, 2, 3], 1: [4, 5, 6]},
+        {0: [1, 2, 9], 1: [4, 8, 9]},
+        k=3,
+    )
+
+    assert report["users"] == 2
+    assert report["mean_topk_retention"] == pytest.approx(0.5)
+    assert report["mean_jaccard"] == pytest.approx((2 / 4 + 1 / 5) / 2)
 
 
 def test_exposure_metrics_detect_catalog_concentration() -> None:

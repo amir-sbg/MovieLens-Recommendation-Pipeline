@@ -358,6 +358,33 @@ def personalization(recommendations_by_user: dict[int, list[int]]) -> float:
     return float(1.0 - np.mean(similarities))
 
 
+def recommendation_stability(
+    reference: dict[int, list[int]],
+    perturbed: dict[int, list[int]],
+    k: int = 10,
+) -> dict[str, float]:
+    if k < 1:
+        raise ValueError("k must be positive")
+    users = sorted(set(reference) & set(perturbed))
+    if not users:
+        return {"users": 0.0, "mean_topk_retention": 0.0, "mean_jaccard": 0.0}
+
+    retention = []
+    jaccard = []
+    for user in users:
+        baseline = set(_top_k(reference[user], k))
+        candidate = set(_top_k(perturbed[user], k))
+        overlap = baseline & candidate
+        retention.append(len(overlap) / len(baseline) if baseline else 0.0)
+        union = baseline | candidate
+        jaccard.append(len(overlap) / len(union) if union else 1.0)
+    return {
+        "users": float(len(users)),
+        "mean_topk_retention": float(np.mean(retention)),
+        "mean_jaccard": float(np.mean(jaccard)),
+    }
+
+
 def recommendation_exposure(
     recommendations_by_user: dict[int, list[int]],
     n_items: int,

@@ -27,11 +27,11 @@ ratings
 - Item-item collaborative filtering with cosine similarity and shrinkage
 - Matrix factorization trained with explicit-feedback SGD and validation early stopping
 - Bayesian Personalized Ranking (BPR) with score-aware hard-negative sampling
-- Ranking metrics: Recall@K, MAP@K, NDCG@K, hit rate, and bootstrap confidence intervals
+- Ranking metrics: Recall@K, MAP@K, NDCG@K, hit rate, bootstrap confidence intervals, and top-k stability under perturbations
 - Paired bootstrap deltas against the popularity baseline for Recall@K and NDCG@K
 - Ranking breakdowns for short-, medium-, and long-history users
-- Catalog diagnostics: coverage, personalization, novelty, exposure concentration, and head/tail recall
-- Rating metrics: RMSE and MAE
+- Catalog diagnostics: coverage, personalization, novelty, exposure concentration, head/tail recall, and MMR diversity reranking
+- Rating metrics: RMSE, MAE, directional bias, and calibration by predicted-rating bin
 - CLI runner, reproducible config, saved reports, and unit tests
 
 ## Quick start
