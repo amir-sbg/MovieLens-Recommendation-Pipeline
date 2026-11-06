@@ -332,6 +332,56 @@ def paired_ranking_bootstrap(
     }
 
 
+def per_user_ranking_lift(
+    baseline_recommendations: dict[int, list[int]],
+    candidate_recommendations: dict[int, list[int]],
+    relevant_by_user: dict[int, set[int]],
+    k: int = 10,
+    tie_tolerance: float = 1e-12,
+) -> dict[str, float]:
+    """Summarize how often a candidate improves ranking quality for each user."""
+
+    if k < 1:
+        raise ValueError("k must be positive")
+    if tie_tolerance < 0.0:
+        raise ValueError("tie_tolerance must not be negative")
+    users = [user for user, relevant in relevant_by_user.items() if relevant]
+    if not users:
+        return {
+            "users": 0.0,
+            "mean_recall_lift": 0.0,
+            "recall_win_rate": 0.0,
+            "recall_tie_rate": 0.0,
+            "mean_ndcg_lift": 0.0,
+            "ndcg_win_rate": 0.0,
+            "ndcg_tie_rate": 0.0,
+        }
+
+    recall_lifts = []
+    ndcg_lifts = []
+    for user in users:
+        relevant = relevant_by_user[user]
+        baseline = baseline_recommendations.get(user, [])
+        candidate = candidate_recommendations.get(user, [])
+        recall_lifts.append(
+            recall_at_k(candidate, relevant, k) - recall_at_k(baseline, relevant, k)
+        )
+        ndcg_lifts.append(
+            ndcg_at_k(candidate, relevant, k) - ndcg_at_k(baseline, relevant, k)
+        )
+    recall_values = np.asarray(recall_lifts)
+    ndcg_values = np.asarray(ndcg_lifts)
+    return {
+        "users": float(len(users)),
+        "mean_recall_lift": float(recall_values.mean()),
+        "recall_win_rate": float(np.mean(recall_values > tie_tolerance)),
+        "recall_tie_rate": float(np.mean(np.abs(recall_values) <= tie_tolerance)),
+        "mean_ndcg_lift": float(ndcg_values.mean()),
+        "ndcg_win_rate": float(np.mean(ndcg_values > tie_tolerance)),
+        "ndcg_tie_rate": float(np.mean(np.abs(ndcg_values) <= tie_tolerance)),
+    }
+
+
 def catalog_coverage(recommendations_by_user: dict[int, list[int]], n_items: int) -> float:
     if n_items < 1:
         raise ValueError("n_items must be positive")

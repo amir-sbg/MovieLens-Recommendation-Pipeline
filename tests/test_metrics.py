@@ -12,6 +12,7 @@ from recsys_lab.metrics import (
     novelty_at_k,
     normalized_exposure_entropy,
     paired_ranking_bootstrap,
+    per_user_ranking_lift,
     personalization,
     precision_at_k,
     ranking_metrics,
@@ -87,6 +88,19 @@ def test_ranking_metrics_average_across_users() -> None:
     assert metrics["hit_rate"] == pytest.approx(0.5)
     assert metrics["recall_at_k"] == pytest.approx(0.5)
     assert metrics["mrr_at_k"] == pytest.approx(0.25)
+
+
+def test_per_user_ranking_lift_separates_wins_and_ties() -> None:
+    relevant = {0: {2}, 1: {5}, 2: {8}}
+    baseline = {0: [9], 1: [5], 2: [8]}
+    candidate = {0: [2], 1: [5], 2: [7]}
+
+    report = per_user_ranking_lift(baseline, candidate, relevant, k=1)
+
+    assert report["mean_recall_lift"] == pytest.approx(0.0)
+    assert report["recall_win_rate"] == pytest.approx(1 / 3)
+    assert report["recall_tie_rate"] == pytest.approx(1 / 3)
+    assert report["ndcg_win_rate"] == pytest.approx(1 / 3)
 
 
 def test_ranking_metrics_by_activity_exposes_history_length_gaps() -> None:

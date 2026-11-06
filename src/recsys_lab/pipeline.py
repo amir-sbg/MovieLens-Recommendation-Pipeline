@@ -22,6 +22,7 @@ from recsys_lab.metrics import (
     novelty_at_k,
     normalized_exposure_entropy,
     paired_ranking_bootstrap,
+    per_user_ranking_lift,
     personalization,
     ranking_metrics,
     ranking_metrics_by_activity,
@@ -326,6 +327,12 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
                     k=config.top_k,
                     n_resamples=config.bootstrap_resamples,
                     seed=config.seed,
+                ),
+                **per_user_ranking_lift(
+                    baseline_recommendations,
+                    recommendations,
+                    heldout,
+                    k=config.top_k,
                 ),
             }
         )
