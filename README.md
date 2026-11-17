@@ -30,7 +30,7 @@ ratings
 - Ranking metrics: Recall@K, MAP@K, NDCG@K, hit rate, bootstrap confidence intervals, and top-k stability under perturbations
 - Paired bootstrap deltas against the popularity baseline for Recall@K and NDCG@K
 - Ranking breakdowns for short-, medium-, and long-history users
-- Catalog diagnostics: coverage, effective catalog size, personalization, novelty, exposure concentration, head/tail recall, and MMR diversity reranking
+- Catalog diagnostics: coverage, effective catalog size, personalization, novelty, popularity bias, exposure concentration, head/tail recall, and MMR diversity reranking
 - Rating metrics: RMSE, MAE, directional bias, and calibration by predicted-rating bin
 - CLI runner, reproducible config, saved reports, and unit tests
 

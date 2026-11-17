@@ -25,6 +25,7 @@ from recsys_lab.metrics import (
     paired_ranking_bootstrap,
     per_user_ranking_lift,
     personalization,
+    recommendation_popularity_bias,
     ranking_metrics,
     ranking_metrics_by_activity,
     recall_by_popularity_segment,
@@ -112,6 +113,7 @@ def _model_rows(
     exposure_gini_value: float,
     exposure_entropy: float,
     effective_catalog: float,
+    popularity_bias: dict[str, float],
     novelty: float,
     long_tail_share: float,
     fit_seconds: float,
@@ -135,6 +137,7 @@ def _model_rows(
         "exposure_gini": exposure_gini_value,
         "exposure_entropy": exposure_entropy,
         "effective_catalog_size": effective_catalog,
+        **popularity_bias,
         "novelty_at_k": novelty,
         "long_tail_share_at_k": long_tail_share,
         "fit_seconds": fit_seconds,
@@ -291,6 +294,9 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
             ),
             effective_catalog=effective_catalog_size(
                 recommendations, data.n_items, config.top_k
+            ),
+            popularity_bias=recommendation_popularity_bias(
+                recommendations, item_popularity, config.top_k
             ),
             novelty=novelty_at_k(
                 recommendations,

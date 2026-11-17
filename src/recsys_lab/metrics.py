@@ -509,6 +509,41 @@ def novelty_at_k(
     return float(np.mean(values)) if values else 0.0
 
 
+def recommendation_popularity_bias(
+    recommendations_by_user: dict[int, list[int]],
+    item_popularity: dict[int, int],
+    k: int = 10,
+) -> dict[str, float]:
+    """Summarize how strongly recommendations favor frequently observed items."""
+
+    if any(popularity < 0 for popularity in item_popularity.values()):
+        raise ValueError("item popularity must not be negative")
+    catalog_values = np.asarray(list(item_popularity.values()), dtype=float)
+    recommended_values = np.asarray(
+        [
+            item_popularity.get(int(item), 0)
+            for recommendations in recommendations_by_user.values()
+            for item in _top_k(recommendations, k)
+        ],
+        dtype=float,
+    )
+    if recommended_values.size == 0:
+        return {
+            "mean_recommended_popularity": 0.0,
+            "median_recommended_popularity": 0.0,
+            "popularity_bias_ratio": 0.0,
+            "zero_history_share": 0.0,
+        }
+    catalog_mean = float(catalog_values.mean()) if catalog_values.size else 0.0
+    recommended_mean = float(recommended_values.mean())
+    return {
+        "mean_recommended_popularity": recommended_mean,
+        "median_recommended_popularity": float(np.median(recommended_values)),
+        "popularity_bias_ratio": recommended_mean / catalog_mean if catalog_mean else 0.0,
+        "zero_history_share": float(np.mean(recommended_values == 0.0)),
+    }
+
+
 def long_tail_share_at_k(
     recommendations_by_user: dict[int, list[int]],
     item_popularity: dict[int, int],

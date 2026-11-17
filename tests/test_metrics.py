@@ -20,6 +20,7 @@ from recsys_lab.metrics import (
     ranking_metrics_by_activity,
     recall_by_popularity_segment,
     recommendation_stability,
+    recommendation_popularity_bias,
     reciprocal_rank_at_k,
     recall_at_k,
     rating_metrics,
@@ -216,6 +217,22 @@ def test_novelty_is_higher_for_less_popular_items() -> None:
         popularity,
         total_interactions=100,
     )
+
+
+def test_popularity_bias_detects_head_item_amplification() -> None:
+    popularity = {0: 100, 1: 10, 2: 0, 3: 10}
+
+    report = recommendation_popularity_bias({0: [0, 1], 1: [0, 2]}, popularity, k=2)
+
+    assert report["mean_recommended_popularity"] == pytest.approx(52.5)
+    assert report["median_recommended_popularity"] == pytest.approx(55.0)
+    assert report["popularity_bias_ratio"] == pytest.approx(1.75)
+    assert report["zero_history_share"] == pytest.approx(0.25)
+
+
+def test_popularity_bias_validates_training_counts() -> None:
+    with pytest.raises(ValueError, match="must not be negative"):
+        recommendation_popularity_bias({0: [1]}, {1: -1})
 
 
 def test_long_tail_share_tracks_less_common_recommendations() -> None:
