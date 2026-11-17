@@ -478,6 +478,21 @@ def normalized_exposure_entropy(
     return entropy / float(np.log(n_items))
 
 
+def effective_catalog_size(
+    recommendations_by_user: dict[int, list[int]],
+    n_items: int,
+    k: int = 10,
+) -> float:
+    """Return the inverse-Simpson number of meaningfully exposed items."""
+
+    exposure = recommendation_exposure(recommendations_by_user, n_items, k)
+    total = float(exposure.sum())
+    if total == 0.0:
+        return 0.0
+    probabilities = exposure / total
+    return float(1.0 / np.sum(probabilities**2))
+
+
 def novelty_at_k(
     recommendations_by_user: dict[int, list[int]],
     item_popularity: dict[int, int],

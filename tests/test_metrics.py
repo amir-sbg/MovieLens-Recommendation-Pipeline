@@ -6,6 +6,7 @@ from recsys_lab.metrics import (
     average_precision_at_k,
     bootstrap_ranking_intervals,
     catalog_coverage,
+    effective_catalog_size,
     exposure_gini,
     long_tail_share_at_k,
     ndcg_at_k,
@@ -193,6 +194,9 @@ def test_exposure_metrics_detect_catalog_concentration() -> None:
 
     assert exposure_gini(concentrated, n_items=6, k=2) > exposure_gini(spread, n_items=6, k=2)
     assert normalized_exposure_entropy(concentrated, n_items=6, k=2) < normalized_exposure_entropy(
+        spread, n_items=6, k=2
+    )
+    assert effective_catalog_size(concentrated, n_items=6, k=2) < effective_catalog_size(
         spread, n_items=6, k=2
     )
 

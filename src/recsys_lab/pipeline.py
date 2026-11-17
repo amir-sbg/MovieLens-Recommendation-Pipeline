@@ -17,6 +17,7 @@ from recsys_lab.data import (
 from recsys_lab.metrics import (
     bootstrap_ranking_intervals,
     catalog_coverage,
+    effective_catalog_size,
     exposure_gini,
     long_tail_share_at_k,
     novelty_at_k,
@@ -110,6 +111,7 @@ def _model_rows(
     diversity: float,
     exposure_gini_value: float,
     exposure_entropy: float,
+    effective_catalog: float,
     novelty: float,
     long_tail_share: float,
     fit_seconds: float,
@@ -132,6 +134,7 @@ def _model_rows(
         "personalization": diversity,
         "exposure_gini": exposure_gini_value,
         "exposure_entropy": exposure_entropy,
+        "effective_catalog_size": effective_catalog,
         "novelty_at_k": novelty,
         "long_tail_share_at_k": long_tail_share,
         "fit_seconds": fit_seconds,
@@ -284,6 +287,9 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
             diversity=personalization(recommendations),
             exposure_gini_value=exposure_gini(recommendations, data.n_items, config.top_k),
             exposure_entropy=normalized_exposure_entropy(
+                recommendations, data.n_items, config.top_k
+            ),
+            effective_catalog=effective_catalog_size(
                 recommendations, data.n_items, config.top_k
             ),
             novelty=novelty_at_k(
