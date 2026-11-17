@@ -26,6 +26,7 @@ from recsys_lab.metrics import (
     rating_metrics,
     rating_calibration,
     rmse,
+    user_utility_distribution,
 )
 
 
@@ -90,6 +91,29 @@ def test_ranking_metrics_average_across_users() -> None:
     assert metrics["hit_rate"] == pytest.approx(0.5)
     assert metrics["recall_at_k"] == pytest.approx(0.5)
     assert metrics["mrr_at_k"] == pytest.approx(0.25)
+
+
+def test_user_utility_distribution_exposes_users_without_hits() -> None:
+    recs = {0: [10], 1: [11], 2: [99], 3: []}
+    relevant = {0: {10}, 1: {11}, 2: {12}, 3: {13}}
+
+    report = user_utility_distribution(recs, relevant, k=1)
+
+    assert report["recall_at_k_p10"] == pytest.approx(0.0)
+    assert report["recall_at_k_median"] == pytest.approx(0.5)
+    assert report["ndcg_at_k_p10"] == pytest.approx(0.0)
+    assert report["zero_hit_rate"] == pytest.approx(0.5)
+
+
+def test_user_utility_distribution_handles_no_evaluable_users() -> None:
+    report = user_utility_distribution({}, {0: set()}, k=10)
+
+    assert report == {
+        "recall_at_k_p10": 0.0,
+        "recall_at_k_median": 0.0,
+        "ndcg_at_k_p10": 0.0,
+        "zero_hit_rate": 0.0,
+    }
 
 
 def test_per_user_ranking_lift_separates_wins_and_ties() -> None:

@@ -30,6 +30,7 @@ from recsys_lab.metrics import (
     ranking_metrics_by_activity,
     recall_by_popularity_segment,
     rating_metrics,
+    user_utility_distribution,
 )
 from recsys_lab.models import (
     BPRMatrixFactorizationRecommender,
@@ -106,6 +107,7 @@ def _model_rows(
     validation_rating: dict[str, float] | None,
     test_rating: dict[str, float] | None,
     ranking: dict[str, float],
+    utility_distribution: dict[str, float],
     ranking_intervals: dict[str, float],
     segment_recall: dict[str, float],
     coverage: float,
@@ -130,6 +132,7 @@ def _model_rows(
         "mrr_at_k": ranking["mrr_at_k"],
         "ndcg_at_k": ranking["ndcg_at_k"],
         "hit_rate": ranking["hit_rate"],
+        **utility_distribution,
         **ranking_intervals,
         **segment_recall,
         "catalog_coverage": coverage,
@@ -284,6 +287,9 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
             validation_rating=None if model_name == "bpr_matrix_factorization" else _predict_frame(model, data.validation),
             test_rating=None if model_name == "bpr_matrix_factorization" else _predict_frame(model, data.test),
             ranking=rank,
+            utility_distribution=user_utility_distribution(
+                recommendations, heldout, config.top_k
+            ),
             ranking_intervals=intervals,
             segment_recall=segment_recall,
             coverage=catalog_coverage(recommendations, data.n_items),

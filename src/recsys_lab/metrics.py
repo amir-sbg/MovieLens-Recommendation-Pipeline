@@ -194,6 +194,35 @@ def ranking_metrics(
     }
 
 
+def user_utility_distribution(
+    recommendations_by_user: dict[int, list[int]],
+    relevant_by_user: dict[int, set[int]],
+    k: int = 10,
+) -> dict[str, float]:
+    """Report lower-tail ranking quality hidden by aggregate means."""
+
+    users = [user for user, relevant in relevant_by_user.items() if relevant]
+    if not users:
+        return {
+            "recall_at_k_p10": 0.0,
+            "recall_at_k_median": 0.0,
+            "ndcg_at_k_p10": 0.0,
+            "zero_hit_rate": 0.0,
+        }
+    recalls = np.asarray(
+        [recall_at_k(recommendations_by_user.get(user, []), relevant_by_user[user], k) for user in users]
+    )
+    ndcgs = np.asarray(
+        [ndcg_at_k(recommendations_by_user.get(user, []), relevant_by_user[user], k) for user in users]
+    )
+    return {
+        "recall_at_k_p10": float(np.quantile(recalls, 0.10)),
+        "recall_at_k_median": float(np.median(recalls)),
+        "ndcg_at_k_p10": float(np.quantile(ndcgs, 0.10)),
+        "zero_hit_rate": float(np.mean(recalls == 0.0)),
+    }
+
+
 def ranking_metrics_by_activity(
     recommendations_by_user: dict[int, list[int]],
     relevant_by_user: dict[int, set[int]],
