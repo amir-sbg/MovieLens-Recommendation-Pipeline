@@ -35,3 +35,12 @@ def test_mmr_reduces_to_relevance_order_at_weight_one() -> None:
 def test_mmr_validates_embedding_indices() -> None:
     with pytest.raises(ValueError, match="outside"):
         mmr_rerank([3], {3: 1.0}, np.eye(3))
+
+
+def test_mmr_rejects_nonfinite_ranking_inputs() -> None:
+    with pytest.raises(ValueError, match="scores must be finite"):
+        mmr_rerank([0, 1], {0: float("nan"), 1: 1.0}, np.eye(2))
+    embeddings = np.eye(2)
+    embeddings[1, 0] = float("inf")
+    with pytest.raises(ValueError, match="embeddings must be finite"):
+        mmr_rerank([0, 1], {0: 1.0, 1: 0.5}, embeddings)

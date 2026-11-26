@@ -27,9 +27,13 @@ def mmr_rerank(
         return []
 
     scores = np.asarray([relevance_scores[item] for item in candidate_items], dtype=float)
+    if not np.isfinite(scores).all():
+        raise ValueError("candidate relevance scores must be finite")
+    vectors = item_embeddings[candidate_items].astype(float, copy=False)
+    if not np.isfinite(vectors).all():
+        raise ValueError("candidate item embeddings must be finite")
     span = float(scores.max() - scores.min())
     normalized_scores = (scores - scores.min()) / span if span > 0 else np.ones_like(scores)
-    vectors = item_embeddings[candidate_items].astype(float, copy=False)
     norms = np.linalg.norm(vectors, axis=1, keepdims=True)
     vectors = vectors / np.maximum(norms, 1e-12)
 
