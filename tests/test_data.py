@@ -82,6 +82,27 @@ def test_normalization_keeps_latest_duplicate_user_item_event() -> None:
     assert normalized.loc[normalized["item_id"] == "i1", "rating"].iloc[0] == 5
 
 
+def test_normalization_drops_missing_ids_before_string_conversion() -> None:
+    frame = pd.DataFrame({
+        "user_id": ["u1", None], "item_id": ["i1", "i2"],
+        "rating": [4, 5], "timestamp": [1, 2],
+    })
+
+    normalized = normalize_interactions(frame)
+
+    assert normalized["user_id"].tolist() == ["u1"]
+
+
+@pytest.mark.parametrize("timestamp, message", [(float("inf"), "finite"), (1.5, "integer")])
+def test_normalization_rejects_invalid_timestamps(timestamp, message) -> None:
+    frame = pd.DataFrame({
+        "user_id": ["u1"], "item_id": ["i1"],
+        "rating": [4], "timestamp": [timestamp],
+    })
+    with pytest.raises(ValueError, match=message):
+        normalize_interactions(frame)
+
+
 def test_seen_and_relevant_items_are_grouped_by_user() -> None:
     frame = pd.DataFrame(
         {

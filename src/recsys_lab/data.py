@@ -90,6 +90,7 @@ def normalize_interactions(interactions: pd.DataFrame) -> pd.DataFrame:
     if missing:
         raise ValueError(f"missing required columns: {sorted(missing)}")
     frame = interactions.loc[:, REQUIRED_COLUMNS].copy()
+    frame = frame.dropna(subset=["user_id", "item_id"])
     frame["user_id"] = frame["user_id"].astype(str)
     frame["item_id"] = frame["item_id"].astype(str)
     frame["rating"] = pd.to_numeric(frame["rating"], errors="coerce")
@@ -97,8 +98,12 @@ def normalize_interactions(interactions: pd.DataFrame) -> pd.DataFrame:
     frame = frame.dropna(subset=list(REQUIRED_COLUMNS)).reset_index(drop=True)
     if frame.empty:
         raise ValueError("interaction table is empty after cleaning")
+    if not np.isfinite(frame[["rating", "timestamp"]].to_numpy(dtype=float)).all():
+        raise ValueError("ratings and timestamps must be finite")
     if not frame["rating"].between(1, 5).all():
         raise ValueError("ratings must be in the 1-5 range")
+    if not (frame["timestamp"] % 1 == 0).all():
+        raise ValueError("timestamps must be integer values")
     frame["timestamp"] = frame["timestamp"].astype(int)
     frame = frame.sort_values(["user_id", "timestamp", "item_id"])
     return frame.drop_duplicates(
