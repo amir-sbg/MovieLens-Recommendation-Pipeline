@@ -33,7 +33,7 @@ def _best_items_from_scores(scores: np.ndarray, seen_items: set[int], k: int) ->
     finite = np.flatnonzero(np.isfinite(masked))
     if len(finite) == 0:
         return []
-    ranked = finite[np.argsort(masked[finite])[::-1]]
+    ranked = finite[np.lexsort((finite, -masked[finite]))]
     return [int(item) for item in ranked[:k]]
 
 

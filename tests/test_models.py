@@ -10,7 +10,14 @@ from recsys_lab.models import (
     ItemKNNRecommender,
     MatrixFactorizationRecommender,
     PopularityRecommender,
+    _best_items_from_scores,
 )
+
+
+def test_recommendation_ties_use_stable_item_id_order() -> None:
+    scores = np.array([0.9, 0.9, 0.8, 0.9])
+
+    assert _best_items_from_scores(scores, {1}, k=3) == [0, 3, 2]
 
 
 def test_popularity_recommender_excludes_seen_items() -> None:
