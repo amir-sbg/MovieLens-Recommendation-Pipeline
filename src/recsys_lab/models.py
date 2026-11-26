@@ -12,8 +12,14 @@ from recsys_lab.metrics import rmse
 def _infer_shape(interactions: pd.DataFrame, n_users: int | None, n_items: int | None) -> tuple[int, int]:
     if interactions.empty:
         raise ValueError("training interactions cannot be empty")
-    users = n_users if n_users is not None else int(interactions["user_idx"].max()) + 1
-    items = n_items if n_items is not None else int(interactions["item_idx"].max()) + 1
+    observed_users = interactions["user_idx"].to_numpy(dtype=int)
+    observed_items = interactions["item_idx"].to_numpy(dtype=int)
+    if np.any(observed_users < 0) or np.any(observed_items < 0):
+        raise ValueError("training user and item indices must be non-negative")
+    users = n_users if n_users is not None else int(observed_users.max()) + 1
+    items = n_items if n_items is not None else int(observed_items.max()) + 1
+    if users <= observed_users.max() or items <= observed_items.max():
+        raise ValueError("model dimensions must contain every training user and item")
     return users, items
 
 

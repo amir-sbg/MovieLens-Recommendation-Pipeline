@@ -24,6 +24,16 @@ def test_popularity_recommender_excludes_seen_items() -> None:
     assert set(recommendations).isdisjoint(seen[0])
 
 
+def test_recommenders_reject_dimensions_smaller_than_training_ids() -> None:
+    interactions = pd.DataFrame({
+        "user_idx": [0, 1], "item_idx": [0, 2], "rating": [4.0, 5.0],
+    })
+    with pytest.raises(ValueError, match="dimensions"):
+        PopularityRecommender().fit(interactions, n_items=2)
+    with pytest.raises(ValueError, match="dimensions"):
+        MatrixFactorizationRecommender(epochs=1).fit(interactions, n_users=1)
+
+
 def test_popularity_recommender_shrinks_sparse_item_means() -> None:
     interactions = pd.DataFrame(
         {
