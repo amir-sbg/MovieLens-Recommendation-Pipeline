@@ -104,6 +104,10 @@ class ItemKNNRecommender:
         n_users: int | None = None,
         n_items: int | None = None,
     ) -> "ItemKNNRecommender":
+        if self.n_neighbors < 1:
+            raise ValueError("n_neighbors must be positive")
+        if not np.isfinite(self.shrinkage) or self.shrinkage < 0:
+            raise ValueError("shrinkage must be finite and non-negative")
         users, items = _infer_shape(interactions, n_users, n_items)
         self.global_mean = float(interactions["rating"].mean())
         self.fallback.fit(interactions, n_users=users, n_items=items)

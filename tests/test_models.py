@@ -75,6 +75,13 @@ def test_item_knn_scores_and_recommends() -> None:
     assert set(recommendations).isdisjoint(seen[0])
 
 
+@pytest.mark.parametrize("neighbors, shrinkage", [(0, 20.0), (5, -1.0), (5, float("nan"))])
+def test_item_knn_rejects_invalid_similarity_settings(neighbors, shrinkage) -> None:
+    data = prepare_recommendation_data(users=8, items=20, density=0.3, seed=12)
+    with pytest.raises(ValueError, match="n_neighbors|shrinkage"):
+        ItemKNNRecommender(n_neighbors=neighbors, shrinkage=shrinkage).fit(data.train)
+
+
 def test_matrix_factorization_trains_and_predicts() -> None:
     data = prepare_recommendation_data(users=12, items=30, density=0.25, seed=13)
     model = MatrixFactorizationRecommender(factors=8, epochs=4, learning_rate=0.04, seed=13)
